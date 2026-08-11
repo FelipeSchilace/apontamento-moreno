@@ -159,12 +159,22 @@
   }
 
   /* ---------- FORM NOVO APONTAMENTO ---------- */
+  .topo-tela{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:4px;
+  }
   .titulo-tela{
     font-family:var(--font-display);
     font-size:22px;
     font-weight:600;
     letter-spacing:0.5px;
-    margin-bottom:4px;
+  }
+  .link-voltar{
+    background:none;border:none;color:var(--text-dim);
+    font-family:var(--font-mono);font-size:11px;letter-spacing:1px;
+    text-decoration:underline;
   }
   .subtitulo-tela{
     font-family:var(--font-mono);
@@ -228,45 +238,64 @@
     min-height:16px;
   }
 
-  /* ---------- ATIVO ---------- */
-  #tela-ativo{align-items:center;text-align:center;justify-content:flex-start;gap:0;}
+  /* ---------- LISTA DE ATIVOS ---------- */
+  #tela-lista{gap:0;}
+  .lista-vazia{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:8px;
+  }
+  .lista-vazia .icone-vazio{font-size:38px;margin-bottom:4px;opacity:0.4;}
+  .lista-vazia p{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:0.5px;
+  }
+  .lista-ativos{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .card-ativo{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:18px;
+  }
+  .card-ativo .card-topo{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+  }
   .status-pill{
     font-family:var(--font-mono);
-    font-size:11px;
-    letter-spacing:2px;
-    padding:6px 14px;
+    font-size:10px;
+    letter-spacing:1.5px;
+    padding:5px 12px;
     border-radius:20px;
     text-transform:uppercase;
-    margin-top:10px;
     border:1px solid var(--green);
     color:var(--green);
   }
   .status-pill.pausado{border-color:var(--amber);color:var(--amber);}
-  #cronometro{
+  .card-ativo .cronometro{
     font-family:var(--font-mono);
-    font-size:58px;
+    font-size:26px;
     font-weight:600;
-    margin:22px 0 4px;
-    letter-spacing:2px;
+    letter-spacing:1px;
     font-variant-numeric:tabular-nums;
   }
-  #cronometro.pausado-txt{color:var(--amber);}
-  .cronometro-label{
-    font-family:var(--font-mono);
-    font-size:10px;
-    letter-spacing:2px;
-    color:var(--text-dim);
-    text-transform:uppercase;
-    margin-bottom:30px;
-  }
+  .card-ativo .cronometro.pausado-txt{color:var(--amber);}
   .card-info{
     width:100%;
-    background:var(--bg-panel);
-    border:1px solid var(--border);
-    border-radius:10px;
-    padding:16px 18px;
-    text-align:left;
-    margin-bottom:28px;
+    margin-bottom:16px;
   }
   .card-info .linha{
     display:flex;
@@ -279,30 +308,44 @@
   .card-info .linha span:first-child{color:var(--text-dim);font-family:var(--font-mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;}
   .card-info .linha span:last-child{font-weight:600;text-align:right;}
   .card-info .linha.pj span:last-child{color:var(--amber);}
-  .acoes-ativo{width:100%;display:flex;flex-direction:column;gap:12px;margin-top:auto;}
+  .acoes-card{width:100%;display:flex;gap:10px;}
   .btn-pausar{
+    flex:1;
     background:var(--bg-elev);
     border:1px solid var(--amber-dim);
     color:var(--amber);
     font-family:var(--font-body);
     font-weight:700;
-    font-size:16px;
-    padding:16px;
+    font-size:14px;
+    padding:14px;
     border-radius:8px;
   }
   .btn-pausar.retomar{border-color:var(--green);color:var(--green);}
   .btn-encerrar{
+    flex:1;
     background:var(--red);
     border:none;
     color:#fff;
     font-family:var(--font-body);
     font-weight:700;
-    font-size:16px;
-    padding:16px;
+    font-size:14px;
+    padding:14px;
     border-radius:8px;
   }
+  .btn-novo-flutuante{
+    width:100%;
+    background:var(--bg-elev);
+    border:1px dashed var(--border);
+    color:var(--text);
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:15px;
+    padding:16px;
+    border-radius:10px;
+    margin-top:auto;
+  }
 
-  /* ---------- MODAL ENCERRAR ---------- */
+  /* ---------- MODAIS ---------- */
   .overlay{
     position:fixed;inset:0;background:rgba(0,0,0,0.7);
     display:none;align-items:center;justify-content:center;padding:20px;z-index:10;
@@ -327,6 +370,7 @@
     color:var(--text-dim);
     margin-bottom:20px;
     letter-spacing:0.5px;
+    line-height:1.6;
   }
   .qtd-controle{
     display:flex;
@@ -358,6 +402,7 @@
   .modal-acoes button{flex:1;padding:14px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:14px;}
   .btn-cancelar{background:none;border:1px solid var(--border);color:var(--text-dim);}
   .btn-confirmar{background:var(--red);border:none;color:#fff;}
+  .btn-confirmar.amber{background:var(--amber);color:#1a1a1a;}
 
   .loading-overlay{
     position:fixed;inset:0;background:rgba(18,18,18,0.85);
@@ -407,52 +452,47 @@
 
     <!-- NOVO APONTAMENTO -->
     <section id="tela-novo" class="screen">
-      <div class="titulo-tela">Novo apontamento</div>
+      <div class="topo-tela">
+        <div class="titulo-tela">Novo apontamento</div>
+        <button class="link-voltar" id="btn-voltar-lista" onclick="mostrarTela('tela-lista')" style="display:none;">VER ATIVOS</button>
+      </div>
       <div class="subtitulo-tela">Preencha os dados do serviço</div>
 
       <div class="campo">
         <label>Ordem</label>
-        <input type="text" id="f-ordem" inputmode="numeric" placeholder="Nº da ordem">
+        <input type="text" id="f-ordem" inputmode="numeric">
       </div>
       <div class="campo">
         <label>Operação (OP)</label>
-        <input type="text" id="f-op" placeholder="Ex: Torneamento">
+        <input type="text" id="f-op">
       </div>
       <div class="campo" id="campo-pj">
         <label>PJ</label>
-        <input type="text" id="f-pj" inputmode="numeric" placeholder="Nº do PJ">
+        <input type="text" id="f-pj" inputmode="numeric">
         <div class="aviso-pj" id="aviso-pj" style="display:none;">⚠ Este PJ segue para aprovação</div>
       </div>
       <div class="campo">
         <label>Centro de Trabalho</label>
-        <input type="text" id="f-centro" placeholder="Ex: Usinagem 1">
+        <input type="text" id="f-centro">
       </div>
       <div class="campo">
         <label>Observação (opcional)</label>
-        <textarea id="f-obs" placeholder="Alguma observação sobre o serviço"></textarea>
+        <textarea id="f-obs"></textarea>
       </div>
 
-      <button class="btn-primario" onclick="iniciarApontamento()">INICIAR APONTAMENTO</button>
+      <button class="btn-primario" onclick="tentarIniciarApontamento()">INICIAR APONTAMENTO</button>
       <div class="erro-form" id="erro-novo"></div>
     </section>
 
-    <!-- ATIVO -->
-    <section id="tela-ativo" class="screen">
-      <div class="status-pill" id="status-pill">EM ANDAMENTO</div>
-      <div id="cronometro">00:00:00</div>
-      <div class="cronometro-label">Tempo de serviço</div>
-
-      <div class="card-info">
-        <div class="linha"><span>Ordem</span><span id="info-ordem">—</span></div>
-        <div class="linha"><span>Operação</span><span id="info-op">—</span></div>
-        <div class="linha pj"><span>PJ</span><span id="info-pj">—</span></div>
-        <div class="linha"><span>Centro</span><span id="info-centro">—</span></div>
+    <!-- LISTA DE ATIVOS -->
+    <section id="tela-lista" class="screen">
+      <div class="titulo-tela" style="margin-bottom:18px;">Meus apontamentos</div>
+      <div id="lista-vazia" class="lista-vazia" style="display:none;">
+        <div class="icone-vazio">—</div>
+        <p>Nenhum apontamento ativo</p>
       </div>
-
-      <div class="acoes-ativo">
-        <button class="btn-pausar" id="btn-pausar" onclick="alternarPausa()">PAUSAR</button>
-        <button class="btn-encerrar" onclick="abrirModalEncerrar()">ENCERRAR SERVIÇO</button>
-      </div>
+      <div id="lista-ativos" class="lista-ativos"></div>
+      <button class="btn-novo-flutuante" onclick="irParaNovo()">+ NOVO APONTAMENTO</button>
     </section>
 
   </main>
@@ -475,6 +515,18 @@
   </div>
 </div>
 
+<!-- MODAL ORDEM DIFERENTE ATIVA -->
+<div class="overlay" id="overlay-ordem-duplicada">
+  <div class="modal">
+    <h3>Outra ordem ativa</h3>
+    <p id="texto-ordem-duplicada"></p>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalOrdemDuplicada()">CANCELAR</button>
+      <button class="btn-confirmar amber" onclick="confirmarNovoMesmaOrdem()">SIM, INICIAR</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading">ENVIANDO...</div>
 
 <script>
@@ -484,9 +536,11 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_5ffI5zZiIaNy
 
 let operadores = [];
 let crachaDigitado = '';
-let sessao = null;      // { nome, cracha }
-let apontamentoAtivo = null; // { id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro }
+let sessao = null;              // { nome, cracha }
+let apontamentosAtivos = [];    // [{ id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro, observacao }]
 let timerInterval = null;
+let encerrarIdAtual = null;     // id do apontamento sendo encerrado no modal
+let qtdAtual = 0;
 
 // ---------- utilidades ----------
 function mostrarTela(id){
@@ -543,12 +597,13 @@ async function entrar(){
     document.getElementById('header-cracha').textContent = op.cracha;
     document.getElementById('header-op').style.display = 'block';
 
-    const ativoResp = await chamarAPI('action=ativo&cracha=' + encodeURIComponent(op.cracha));
-    if(ativoResp.ok && ativoResp.dados){
-      apontamentoAtivo = ativoResp.dados;
-      abrirTelaAtivo();
+    const r2 = await chamarAPI('action=ativos&cracha=' + encodeURIComponent(op.cracha));
+    apontamentosAtivos = (r2.ok && Array.isArray(r2.dados)) ? r2.dados : [];
+
+    if(apontamentosAtivos.length > 0){
+      abrirTelaLista();
     } else {
-      mostrarTela('tela-novo');
+      irParaNovo();
     }
   }catch(err){
     erroEl.textContent = 'Erro de conexão. Tente novamente.';
@@ -558,7 +613,7 @@ async function entrar(){
 function sair(){
   sessao = null;
   crachaDigitado = '';
-  apontamentoAtivo = null;
+  apontamentosAtivos = [];
   clearInterval(timerInterval);
   atualizarDisplayCracha();
   document.getElementById('header-op').style.display = 'none';
@@ -579,8 +634,19 @@ document.getElementById('f-pj').addEventListener('input', function(){
   }
 });
 
-// ---------- novo apontamento ----------
-async function iniciarApontamento(){
+// ---------- navegação novo apontamento ----------
+function irParaNovo(){
+  ['f-ordem','f-op','f-pj','f-centro','f-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('aviso-pj').style.display='none';
+  document.getElementById('campo-pj').classList.remove('pj-1301');
+  document.getElementById('erro-novo').textContent = '';
+  document.getElementById('btn-voltar-lista').style.display = apontamentosAtivos.length > 0 ? 'block' : 'none';
+  mostrarTela('tela-novo');
+}
+
+// ---------- novo apontamento (com checagem de ordem) ----------
+let dadosNovoApontamento = null;
+function tentarIniciarApontamento(){
   const erroEl = document.getElementById('erro-novo');
   erroEl.textContent = '';
   const ordem = document.getElementById('f-ordem').value.trim();
@@ -593,6 +659,39 @@ async function iniciarApontamento(){
     erroEl.textContent = 'Preencha Ordem, Operação, PJ e Centro de Trabalho';
     return;
   }
+
+  // regra: um apontamento por combinação Ordem + PJ — bloqueia só se essa combinação exata já está ativa
+  const mesmaCombinacao = apontamentosAtivos.find(a => String(a.ordem).trim() === ordem && String(a.pj).trim() === pj);
+  if(mesmaCombinacao){
+    erroEl.textContent = 'Já existe um apontamento ativo para a ordem Nº ' + ordem + ' com o PJ ' + pj + '.';
+    return;
+  }
+
+  dadosNovoApontamento = { ordem, op, pj, centro, obs };
+
+  // avisa só se existe uma ordem DIFERENTE ativa (mesma ordem com outro PJ não precisa avisar)
+  const outrasOrdens = [...new Set(
+    apontamentosAtivos.filter(a => String(a.ordem).trim() !== ordem).map(a => String(a.ordem).trim())
+  )];
+  if(outrasOrdens.length > 0){
+    document.getElementById('texto-ordem-duplicada').textContent =
+      'Você já tem a ordem Nº ' + outrasOrdens.join(', ') + ' ativa. Deseja também iniciar a ordem Nº ' + ordem + '?';
+    document.getElementById('overlay-ordem-duplicada').classList.add('active');
+    return;
+  }
+  iniciarApontamento();
+}
+function fecharModalOrdemDuplicada(){
+  document.getElementById('overlay-ordem-duplicada').classList.remove('active');
+}
+function confirmarNovoMesmaOrdem(){
+  fecharModalOrdemDuplicada();
+  iniciarApontamento();
+}
+
+async function iniciarApontamento(){
+  const erroEl = document.getElementById('erro-novo');
+  const { ordem, op, pj, centro, obs } = dadosNovoApontamento;
   loading(true);
   try{
     const r = await chamarAPI(null, 'POST', {
@@ -600,84 +699,96 @@ async function iniciarApontamento(){
       ordem, op, pj, centro, observacao: obs
     });
     if(!r.ok) throw new Error(r.erro);
-    apontamentoAtivo = {
+    apontamentosAtivos.push({
       id:r.dados.id, inicioTs:r.dados.inicioTs, pausaMin:0, pausadoTs:null,
-      status:'EM ANDAMENTO', ordem, op, pj, centro
-    };
-    ['f-ordem','f-op','f-pj','f-centro','f-obs'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('aviso-pj').style.display='none';
-    document.getElementById('campo-pj').classList.remove('pj-1301');
-    abrirTelaAtivo();
+      status:'EM ANDAMENTO', ordem, op, pj, centro, observacao: obs
+    });
+    abrirTelaLista();
   }catch(err){
     erroEl.textContent = 'Erro ao enviar. Tente novamente.';
   }
   loading(false);
 }
 
-// ---------- tela ativo / cronômetro ----------
-function abrirTelaAtivo(){
-  document.getElementById('info-ordem').textContent = apontamentoAtivo.ordem;
-  document.getElementById('info-op').textContent = apontamentoAtivo.op;
-  document.getElementById('info-pj').textContent = apontamentoAtivo.pj;
-  document.getElementById('info-centro').textContent = apontamentoAtivo.centro;
-  atualizarStatusVisual();
-  mostrarTela('tela-ativo');
+// ---------- lista de ativos / cronômetros ----------
+function abrirTelaLista(){
+  renderizarLista();
+  mostrarTela('tela-lista');
   clearInterval(timerInterval);
-  timerInterval = setInterval(atualizarCronometro, 1000);
-  atualizarCronometro();
+  timerInterval = setInterval(atualizarTodosCronometros, 1000);
 }
-function atualizarStatusVisual(){
-  const pill = document.getElementById('status-pill');
-  const btnPausar = document.getElementById('btn-pausar');
-  const crono = document.getElementById('cronometro');
-  if(apontamentoAtivo.status === 'PAUSADO'){
-    pill.textContent = 'PAUSADO';
-    pill.classList.add('pausado');
-    btnPausar.textContent = 'RETOMAR';
-    btnPausar.classList.add('retomar');
-    crono.classList.add('pausado-txt');
-  } else {
-    pill.textContent = 'EM ANDAMENTO';
-    pill.classList.remove('pausado');
-    btnPausar.textContent = 'PAUSAR';
-    btnPausar.classList.remove('retomar');
-    crono.classList.remove('pausado-txt');
+function renderizarLista(){
+  const container = document.getElementById('lista-ativos');
+  const vazio = document.getElementById('lista-vazia');
+  if(apontamentosAtivos.length === 0){
+    container.innerHTML = '';
+    vazio.style.display = 'flex';
+    return;
   }
+  vazio.style.display = 'none';
+  container.innerHTML = apontamentosAtivos.map(a => `
+    <div class="card-ativo" data-id="${a.id}">
+      <div class="card-topo">
+        <span class="status-pill ${a.status==='PAUSADO'?'pausado':''}">${a.status==='PAUSADO'?'PAUSADO':'EM ANDAMENTO'}</span>
+        <span class="cronometro ${a.status==='PAUSADO'?'pausado-txt':''}" id="crono-${a.id}">00:00:00</span>
+      </div>
+      <div class="card-info">
+        <div class="linha"><span>Ordem</span><span>${escaparHtml(a.ordem)}</span></div>
+        <div class="linha"><span>Operação</span><span>${escaparHtml(a.op)}</span></div>
+        <div class="linha pj"><span>PJ</span><span>${escaparHtml(a.pj)}</span></div>
+        <div class="linha"><span>Centro</span><span>${escaparHtml(a.centro)}</span></div>
+      </div>
+      <div class="acoes-card">
+        <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
+        <button class="btn-encerrar" onclick="abrirModalEncerrar('${a.id}')">ENCERRAR</button>
+      </div>
+    </div>
+  `).join('');
+  atualizarTodosCronometros();
 }
-function atualizarCronometro(){
-  if(!apontamentoAtivo) return;
-  const agora = Date.now();
-  let decorridoMs;
-  if(apontamentoAtivo.status === 'PAUSADO' && apontamentoAtivo.pausadoTs){
-    decorridoMs = apontamentoAtivo.pausadoTs - apontamentoAtivo.inicioTs - (apontamentoAtivo.pausaMin*60000);
-  } else {
-    decorridoMs = agora - apontamentoAtivo.inicioTs - (apontamentoAtivo.pausaMin*60000);
-  }
-  decorridoMs = Math.max(0, decorridoMs);
-  const totalSeg = Math.floor(decorridoMs/1000);
-  const h = String(Math.floor(totalSeg/3600)).padStart(2,'0');
-  const m = String(Math.floor((totalSeg%3600)/60)).padStart(2,'0');
-  const s = String(totalSeg%60).padStart(2,'0');
-  document.getElementById('cronometro').textContent = h+':'+m+':'+s;
+function escaparHtml(v){
+  const d = document.createElement('div');
+  d.textContent = v == null ? '' : String(v);
+  return d.innerHTML;
+}
+function atualizarTodosCronometros(){
+  apontamentosAtivos.forEach(a => {
+    const el = document.getElementById('crono-' + a.id);
+    if(!el) return;
+    const agora = Date.now();
+    let decorridoMs;
+    if(a.status === 'PAUSADO' && a.pausadoTs){
+      decorridoMs = a.pausadoTs - a.inicioTs - (a.pausaMin*60000);
+    } else {
+      decorridoMs = agora - a.inicioTs - (a.pausaMin*60000);
+    }
+    decorridoMs = Math.max(0, decorridoMs);
+    const totalSeg = Math.floor(decorridoMs/1000);
+    const h = String(Math.floor(totalSeg/3600)).padStart(2,'0');
+    const m = String(Math.floor((totalSeg%3600)/60)).padStart(2,'0');
+    const s = String(totalSeg%60).padStart(2,'0');
+    el.textContent = h+':'+m+':'+s;
+  });
 }
 
-async function alternarPausa(){
+async function alternarPausa(id){
+  const a = apontamentosAtivos.find(x => x.id === id);
+  if(!a) return;
   loading(true);
   try{
-    if(apontamentoAtivo.status === 'EM ANDAMENTO'){
-      const r = await chamarAPI(null,'POST',{action:'pausar', id:apontamentoAtivo.id});
+    if(a.status === 'EM ANDAMENTO'){
+      const r = await chamarAPI(null,'POST',{action:'pausar', id});
       if(!r.ok) throw new Error(r.erro);
-      apontamentoAtivo.status = 'PAUSADO';
-      apontamentoAtivo.pausadoTs = r.dados.pausadoTs;
+      a.status = 'PAUSADO';
+      a.pausadoTs = r.dados.pausadoTs;
     } else {
-      const r = await chamarAPI(null,'POST',{action:'retomar', id:apontamentoAtivo.id});
+      const r = await chamarAPI(null,'POST',{action:'retomar', id});
       if(!r.ok) throw new Error(r.erro);
-      apontamentoAtivo.status = 'EM ANDAMENTO';
-      apontamentoAtivo.pausaMin = r.dados.pausaMin;
-      apontamentoAtivo.pausadoTs = null;
+      a.status = 'EM ANDAMENTO';
+      a.pausaMin = r.dados.pausaMin;
+      a.pausadoTs = null;
     }
-    atualizarStatusVisual();
-    atualizarCronometro();
+    renderizarLista();
   }catch(err){
     alert('Erro ao atualizar. Tente novamente.');
   }
@@ -685,14 +796,15 @@ async function alternarPausa(){
 }
 
 // ---------- encerrar ----------
-let qtdAtual = 0;
-function abrirModalEncerrar(){
+function abrirModalEncerrar(id){
+  encerrarIdAtual = id;
   qtdAtual = 0;
   document.getElementById('input-qtd').value = 0;
   document.getElementById('overlay-encerrar').classList.add('active');
 }
 function fecharModalEncerrar(){
   document.getElementById('overlay-encerrar').classList.remove('active');
+  encerrarIdAtual = null;
 }
 function alterarQtd(delta){
   qtdAtual = Math.max(0, qtdAtual + delta);
@@ -702,14 +814,19 @@ document.getElementById('input-qtd').addEventListener('input', function(){
   qtdAtual = Math.max(0, parseInt(this.value)||0);
 });
 async function confirmarEncerrar(){
+  if(!encerrarIdAtual) return;
   loading(true);
   try{
-    const r = await chamarAPI(null,'POST',{action:'encerrar', id:apontamentoAtivo.id, quantidade:qtdAtual});
+    const r = await chamarAPI(null,'POST',{action:'encerrar', id:encerrarIdAtual, quantidade:qtdAtual});
     if(!r.ok) throw new Error(r.erro);
+    apontamentosAtivos = apontamentosAtivos.filter(a => a.id !== encerrarIdAtual);
     fecharModalEncerrar();
-    clearInterval(timerInterval);
-    apontamentoAtivo = null;
-    mostrarTela('tela-novo');
+    if(apontamentosAtivos.length === 0){
+      clearInterval(timerInterval);
+      irParaNovo();
+    } else {
+      renderizarLista();
+    }
   }catch(err){
     alert('Erro ao encerrar. Tente novamente.');
   }
@@ -721,7 +838,7 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
-}    
+}
 </script>
 </body>
 </html>
