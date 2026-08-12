@@ -367,7 +367,9 @@ async function entrarAdmin(){
     document.getElementById('header-admin').style.display = 'flex';
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('tela-painel').classList.add('active');
-    await carregarAtivos();
+    todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
+    popularFiltroOperadores();
+    renderizarOperacoes();
     timerInterval = setInterval(atualizarCronometros, 1000);
   }catch(err){
     erroEl.textContent = 'Erro de conexão. Tente novamente.';
