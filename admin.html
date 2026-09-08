@@ -187,15 +187,16 @@
     border:1px solid var(--border);
   }
   .mapa-container img{width:100%;display:block;}
-  .ponto-maquina{
-    position:absolute;border-radius:6px;cursor:pointer;
-    mix-blend-mode:multiply;
+  .mapa-svg{position:absolute;inset:0;width:100%;height:100%;}
+  .maquina-poligono{
+    cursor:pointer;
+    stroke-width:0.25;
     transition:opacity .15s;
   }
-  .ponto-maquina.verde{background:var(--green);opacity:0.55;}
-  .ponto-maquina.amarela{background:var(--amber);opacity:0.55;}
-  .ponto-maquina.vermelha{background:var(--red);opacity:0.45;}
-  .ponto-maquina:hover{opacity:0.8;z-index:5;}
+  .maquina-poligono.verde{fill:var(--green);fill-opacity:0.55;stroke:var(--green);}
+  .maquina-poligono.amarela{fill:var(--amber);fill-opacity:0.55;stroke:var(--amber);}
+  .maquina-poligono.vermelha{fill:var(--red);fill-opacity:0.45;stroke:var(--red);}
+  .maquina-poligono:hover{fill-opacity:0.8;}
   .tooltip-maquina{
     position:absolute;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;
     padding:10px 12px;font-family:var(--font-mono);font-size:11px;color:var(--text);
@@ -389,45 +390,45 @@ function setorDoTipo(tipo){
 }
 const ORDEM_TIPOS = ['Tornos','Mandrilhadoras','Furadeiras','Fresadoras','Plainas','Solda','Montagem/Desmontagem','Grafitamento','Outros'];
 
-// ---------- áreas das máquinas nos mapas (% da largura/altura da imagem) ----------
+// ---------- contornos das máquinas nos mapas (polígono, % da largura/altura da imagem) ----------
 const MAPA_POSICOES = {
   usinagem1: [
-    { codigo:'511117', left:'3.0%', top:'18.8%', width:'16.5%', height:'17.4%' },
-    { codigo:'511106', left:'24.5%', top:'19.7%', width:'14.5%', height:'11.6%' },
-    { codigo:'511107', left:'43.0%', top:'17.4%', width:'19.0%', height:'14.5%' },
-    { codigo:'511123', left:'65.0%', top:'17.4%', width:'7.8%', height:'23.2%' },
-    { codigo:'511120', left:'86.1%', top:'22.6%', width:'13.3%', height:'7.8%' },
-    { codigo:'511394', left:'23.0%', top:'42.0%', width:'7.5%', height:'6.7%' },
-    { codigo:'511121', left:'33.7%', top:'41.2%', width:'18.0%', height:'8.1%' },
-    { codigo:'511118', left:'1.5%', top:'58.8%', width:'18.0%', height:'26.7%' },
-    { codigo:'511124', left:'20.7%', top:'69.0%', width:'4.6%', height:'15.1%' },
-    { codigo:'511151', left:'28.2%', top:'67.2%', width:'8.0%', height:'18.3%' },
-    { codigo:'511119', left:'48.7%', top:'76.0%', width:'14.8%', height:'7.5%' },
-    { codigo:'511105', left:'72.7%', top:'76.0%', width:'11.5%', height:'8.7%' },
-    { codigo:'511112', left:'88.5%', top:'73.9%', width:'2.2%', height:'10.1%' },
-    { codigo:'511113', left:'92.7%', top:'72.5%', width:'3.0%', height:'13.0%' },
-    { codigo:'511114', left:'96.4%', top:'72.5%', width:'3.0%', height:'13.0%' }
+    { codigo:'511123', pontos:[[64.2,16.5],[72.0,16.5],[72.0,39.7],[64.2,39.7]] },
+    { codigo:'511120', pontos:[[86.0,20.5],[97.2,20.7],[97.3,30.0],[85.9,30.7]] },
+    { codigo:'511394', pontos:[[23.0,42.0],[30.2,42.2],[30.1,48.5],[23.0,48.7]] },
+    { codigo:'511121', pontos:[[33.4,41.4],[50.9,41.1],[50.9,49.6],[33.4,49.5]] },
+    { codigo:'511124', pontos:[[21.0,71.4],[24.8,71.3],[24.8,87.7],[20.8,87.9]] },
+    { codigo:'511151', pontos:[[28.0,69.4],[35.7,69.2],[35.6,90.1],[28.0,90.2]] },
+    { codigo:'511119', pontos:[[48.7,77.9],[62.0,77.4],[62.0,85.0],[48.7,85.4]] },
+    { codigo:'511105', pontos:[[72.2,80.7],[82.9,80.3],[83.0,89.9],[72.1,90.4]] },
+    { codigo:'511112', pontos:[[88.5,73.9],[91.4,74.0],[91.4,89.8],[88.5,89.6]] },
+    { codigo:'511113', pontos:[[93.0,73.5],[95.8,73.5],[95.9,90.9],[92.9,90.9]] },
+    { codigo:'511114', pontos:[[96.6,73.0],[99.1,73.2],[99.1,90.7],[96.5,90.9]] },
+    { codigo:'511117', pontos:[[3.1,31.3],[3.2,20.7],[5.7,20.7],[5.7,15.8],[7.3,15.3],[7.4,20.2],[19.0,20.4],[19.0,33.8],[11.2,33.7],[11.2,34.6],[5.8,34.9],[5.9,31.6]] },
+    { codigo:'511106', pontos:[[24.0,30.7],[24.0,25.9],[31.6,25.8],[31.6,17.4],[33.5,17.4],[33.6,25.9],[38.6,25.9],[38.7,30.3],[33.6,30.3],[33.6,33.8],[31.6,34.1],[31.5,30.7]] },
+    { codigo:'511107', pontos:[[43.1,32.9],[43.1,23.7],[45.7,24.2],[45.6,21.5],[49.2,21.3],[49.2,15.3],[52.1,15.5],[52.2,24.3],[60.8,24.6],[60.7,32.7],[52.2,32.9],[52.1,37.0],[49.8,37.0],[49.9,33.0]] },
+    { codigo:'511118', pontos:[[15.6,91.2],[15.5,82.3],[18.7,82.2],[18.7,61.8],[7.8,62.0],[7.7,65.6],[1.4,65.9],[1.4,82.2],[12.5,82.7],[12.5,90.6]] }
   ],
   usinagem2: [
-    { codigo:'521613', left:'27.7%', top:'53.7%', width:'5.6%', height:'5.0%' },
-    { codigo:'521560', left:'35.5%', top:'53.0%', width:'4.5%', height:'8.4%' },
-    { codigo:'521393', left:'53.5%', top:'53.0%', width:'13.3%', height:'7.1%' },
-    { codigo:'521489', left:'77.6%', top:'37.9%', width:'6.0%', height:'6.2%' },
-    { codigo:'521609', left:'87.2%', top:'38.8%', width:'11.5%', height:'4.8%' },
-    { codigo:'521561', left:'86.3%', top:'11.2%', width:'11.8%', height:'22.6%' },
-    { codigo:'511102', left:'79.0%', top:'52.5%', width:'3.4%', height:'11.6%' },
-    { codigo:'521433', left:'84.3%', top:'52.5%', width:'3.9%', height:'10.7%' },
-    { codigo:'521284', left:'93.4%', top:'54.3%', width:'5.0%', height:'7.1%' },
-    { codigo:'521496', left:'3.1%', top:'69.0%', width:'10.3%', height:'22.2%' },
-    { codigo:'521493', left:'27.9%', top:'70.8%', width:'5.7%', height:'18.1%' },
-    { codigo:'521610', left:'35.0%', top:'76.5%', width:'6.4%', height:'13.9%' },
-    { codigo:'521395', left:'46.6%', top:'76.2%', width:'5.3%', height:'11.0%' },
-    { codigo:'521396', left:'53.3%', top:'74.4%', width:'5.2%', height:'13.7%' },
-    { codigo:'521285', left:'60.6%', top:'74.4%', width:'5.2%', height:'13.7%' },
-    { codigo:'521327', left:'76.4%', top:'70.3%', width:'9.2%', height:'23.7%' },
-    { codigo:'521210', left:'88.9%', top:'70.8%', width:'9.5%', height:'17.3%' },
-    { codigo:'521374', left:'42.0%', top:'85.1%', width:'3.2%', height:'3.9%' },
-    { codigo:'521328', left:'67.4%', top:'86.3%', width:'9.1%', height:'4.1%' }
+    { codigo:'521613', pontos:[[27.7,53.7],[33.3,53.7],[33.3,58.7],[27.7,58.7]] },
+    { codigo:'521284', pontos:[[93.3,54.8],[97.3,54.7],[97.2,62.0],[93.3,61.9]] },
+    { codigo:'521496', pontos:[[3.6,69.0],[13.2,68.5],[13.2,90.9],[3.6,91.2]] },
+    { codigo:'521610', pontos:[[35.2,78.7],[41.5,78.1],[41.5,91.3],[35.1,91.3]] },
+    { codigo:'521285', pontos:[[60.6,73.7],[66.0,73.6],[65.9,88.9],[60.7,88.9]] },
+    { codigo:'521493', pontos:[[34.4,76.9],[33.1,77.2],[33.2,82.7],[32.1,82.9],[32.1,89.8],[32.8,89.9],[32.9,92.4],[28.4,92.2],[28.4,87.8],[29.1,87.8],[29.2,78.7],[27.6,78.7],[27.6,70.1],[34.4,70.1]] },
+    { codigo:'521374', pontos:[[41.9,89.8],[41.8,86.3],[44.0,86.2],[43.9,82.9],[43.1,83.2],[43.1,80.2],[44.0,79.9],[43.9,78.8],[44.9,78.7],[44.9,80.0],[45.6,79.9],[45.6,82.7],[44.9,82.9],[45.0,89.6]] },
+    { codigo:'521395', pontos:[[46.5,84.2],[46.4,87.8],[46.9,87.8],[46.9,84.1],[47.3,84.2],[47.4,87.2],[48.2,87.2],[48.2,88.0],[50.1,88.1],[50.1,87.2],[51.5,87.1],[51.5,81.7],[51.1,81.8],[51.1,78.4],[47.3,78.4],[47.3,80.5],[47.1,80.9]] },
+    { codigo:'521393', pontos:[[53.7,59.5],[53.7,55.7],[64.3,56.2],[64.3,55.3],[65.4,55.3],[65.4,57.8],[66.2,58.0],[66.2,60.5],[63.7,60.8],[63.8,59.8],[60.5,59.8],[60.4,61.9],[58.7,62.2],[58.6,59.5]] },
+    { codigo:'521396', pontos:[[53.4,84.5],[53.4,80.6],[54.1,80.6],[54.1,75.2],[57.9,75.4],[58.0,84.4],[58.6,84.5],[58.6,90.6],[58.1,90.6],[58.0,88.9],[56.7,88.9],[56.8,89.8],[55.2,89.8],[55.2,88.6],[54.2,88.6],[54.0,84.4]] },
+    { codigo:'521328', pontos:[[66.7,88.4],[66.7,85.9],[76.7,86.3],[76.7,90.6],[68.7,90.6],[68.9,91.2],[67.7,91.3],[67.7,88.3]] },
+    { codigo:'521327', pontos:[[77.6,93.7],[77.4,85.4],[76.8,85.6],[76.7,80.0],[76.0,80.3],[76.0,77.0],[78.0,77.0],[78.1,68.6],[84.1,68.5],[84.2,77.2],[85.9,76.9],[85.9,85.3],[85.1,85.3],[85.1,93.9]] },
+    { codigo:'521210', pontos:[[89.1,84.5],[89.0,77.3],[89.9,77.8],[89.8,68.5],[94.7,68.5],[94.7,77.5],[97.9,77.5],[97.9,84.7]] },
+    { codigo:'521560', pontos:[[35.2,59.8],[35.2,57.7],[36.9,57.5],[36.9,56.3],[37.8,56.6],[37.7,52.1],[38.6,52.1],[38.7,56.8],[39.5,56.6],[39.5,57.8],[40.0,58.0],[40.1,59.6],[39.5,59.5],[39.5,61.6],[37.0,61.3],[37.0,59.8]] },
+    { codigo:'521433', pontos:[[85.3,64.3],[85.2,61.1],[84.5,61.0],[84.6,59.0],[85.3,58.7],[85.2,55.0],[85.7,55.0],[85.6,52.3],[87.2,52.3],[87.3,55.1],[87.7,55.1],[87.6,58.9],[88.3,58.6],[88.3,61.3],[87.7,61.3],[87.7,64.4]] },
+    { codigo:'511102', pontos:[[79.9,63.7],[79.9,62.3],[79.5,62.5],[79.5,60.2],[79.9,60.2],[79.9,54.4],[81.8,54.2],[81.8,59.9],[82.0,60.1],[82.1,62.5],[81.7,62.5],[81.8,63.8]] },
+    { codigo:'521609', pontos:[[87.3,43.8],[87.4,38.9],[98.6,38.7],[98.7,43.2],[94.9,43.4],[94.8,44.4],[94.1,44.6],[94.1,43.4],[89.7,43.4],[89.5,44.0]] },
+    { codigo:'521489', pontos:[[76.7,37.2],[76.7,41.0],[78.6,40.8],[78.7,44.9],[79.9,45.0],[79.9,45.6],[83.4,45.3],[83.4,44.4],[82.9,44.4],[82.9,40.5],[84.8,40.7],[84.8,37.5]] },
+    { codigo:'521561', pontos:[[86.9,26.3],[86.9,21.3],[90.0,21.2],[90.0,15.5],[92.2,15.3],[92.2,10.2],[95.1,10.1],[95.2,13.5],[95.5,13.7],[95.6,19.4],[97.5,19.7],[97.6,25.5],[95.7,25.7],[95.7,33.8],[94.3,34.2],[94.3,26.6]] }
   ]
 };
 
@@ -617,26 +618,32 @@ function renderizarMapa(){
   renderizarUmMapa('mapa-usinagem1', MAPA_POSICOES.usinagem1);
   renderizarUmMapa('mapa-usinagem2', MAPA_POSICOES.usinagem2);
 }
-function renderizarUmMapa(idContainer, pontos){
+function renderizarUmMapa(idContainer, maquinas){
   const container = document.getElementById(idContainer);
-  container.querySelectorAll('.ponto-maquina, .tooltip-maquina').forEach(el => el.remove());
-  pontos.forEach(p => {
+  container.querySelectorAll('.mapa-svg, .tooltip-maquina').forEach(el => el.remove());
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'mapa-svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+
+  maquinas.forEach(p => {
     const status = statusDoCodigo(p.codigo);
     const nomeCentro = nomeDoCentro(p.codigo) || p.codigo;
-    const centroLeft = 'calc(' + p.left + ' + ' + p.width + ' / 2)';
-    const centroTop = p.top;
 
-    const area = document.createElement('div');
-    area.className = 'ponto-maquina ' + status;
-    area.style.left = p.left;
-    area.style.top = p.top;
-    area.style.width = p.width;
-    area.style.height = p.height;
+    const cx = p.pontos.reduce((s,pt)=>s+pt[0],0) / p.pontos.length;
+    const cy = p.pontos.reduce((s,pt)=>s+pt[1],0) / p.pontos.length;
+
+    const poligono = document.createElementNS(svgNS, 'polygon');
+    poligono.setAttribute('points', p.pontos.map(pt => pt[0]+','+pt[1]).join(' '));
+    poligono.setAttribute('class', 'maquina-poligono ' + status);
+    poligono.setAttribute('vector-effect', 'non-scaling-stroke');
 
     const tooltip = document.createElement('div');
     tooltip.className = 'tooltip-maquina';
-    tooltip.style.left = centroLeft;
-    tooltip.style.top = centroTop;
+    tooltip.style.left = cx + '%';
+    tooltip.style.top = cy + '%';
     const ativos = infoDoCodigo(p.codigo);
     let conteudoTt = '<div class="tt-titulo">' + escaparHtml(p.codigo) + ' — ' + escaparHtml(nomeCentro) + '</div>';
     if(ativos.length === 0){
@@ -648,13 +655,15 @@ function renderizarUmMapa(idContainer, pontos){
     }
     tooltip.innerHTML = conteudoTt;
 
-    area.addEventListener('mouseenter', () => tooltip.classList.add('visivel'));
-    area.addEventListener('mouseleave', () => tooltip.classList.remove('visivel'));
-    area.addEventListener('click', () => tooltip.classList.toggle('visivel'));
+    poligono.addEventListener('mouseenter', () => tooltip.classList.add('visivel'));
+    poligono.addEventListener('mouseleave', () => tooltip.classList.remove('visivel'));
+    poligono.addEventListener('click', () => tooltip.classList.toggle('visivel'));
 
-    container.appendChild(area);
+    svg.appendChild(poligono);
     container.appendChild(tooltip);
   });
+
+  container.appendChild(svg);
 }
 function renderizarOperadores(){
   const porOperador = {};
