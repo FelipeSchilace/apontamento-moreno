@@ -157,6 +157,23 @@
     font-size:12px;
     min-height:16px;
   }
+  .lembrar-linha{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:0.5px;
+  }
+  .lembrar-linha input{width:16px;height:16px;accent-color:var(--red);}
+  .entrando-auto{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:1px;
+  }
 
   /* ---------- FORM NOVO APONTAMENTO ---------- */
   .topo-tela{
@@ -194,7 +211,7 @@
     color:var(--text-dim);
     margin-bottom:8px;
   }
-  .campo input, .campo textarea{
+  .campo input, .campo textarea, .campo select{
     width:100%;
     background:var(--bg-panel);
     border:1px solid var(--border);
@@ -205,9 +222,12 @@
     border-radius:8px;
     outline:none;
   }
-  .campo input:focus, .campo textarea:focus{border-color:var(--amber);}
+  .campo select{appearance:none;-webkit-appearance:none;}
+  .campo input:focus, .campo textarea:focus, .campo select:focus{border-color:var(--amber);}
   .campo textarea{resize:none;min-height:60px;}
   .campo.pj-1301 input{border-color:var(--amber);color:var(--amber);font-weight:600;}
+  .campo.obrigatorio-1301 textarea, .campo.obrigatorio-1301 select{border-color:var(--amber);}
+  .campo.obrigatorio-1301 label{color:var(--amber);}
   .aviso-pj{
     font-family:var(--font-mono);
     font-size:11px;
@@ -447,6 +467,10 @@
         <button onclick="digitar('0')">0</button>
         <button class="entrar" onclick="entrar()">ENTRAR</button>
       </div>
+      <label class="lembrar-linha">
+        <input type="checkbox" id="f-lembrar" checked>
+        Manter conectado neste celular
+      </label>
       <div id="login-erro"></div>
     </section>
 
@@ -469,14 +493,24 @@
       <div class="campo" id="campo-pj">
         <label>PJ</label>
         <input type="text" id="f-pj" inputmode="numeric">
-        <div class="aviso-pj" id="aviso-pj" style="display:none;">⚠ Este PJ segue para aprovação</div>
+        <div class="aviso-pj" id="aviso-pj" style="display:none;">⚠ Este PJ segue para aprovação — categoria e descrição são obrigatórias</div>
       </div>
       <div class="campo">
         <label>Centro de Trabalho</label>
         <input type="text" id="f-centro">
       </div>
-      <div class="campo">
-        <label>Observação (opcional)</label>
+      <div class="campo" id="campo-categoria" style="display:none;">
+        <label>Categoria do serviço</label>
+        <select id="f-categoria">
+          <option value="">Selecione...</option>
+          <option value="RNC">RNC</option>
+          <option value="Manutenção">Manutenção</option>
+          <option value="Reforma">Reforma</option>
+          <option value="Serviço não previsto">Serviço não previsto</option>
+        </select>
+      </div>
+      <div class="campo" id="campo-obs">
+        <label id="label-obs">Observação (opcional)</label>
         <textarea id="f-obs"></textarea>
       </div>
 
@@ -502,10 +536,10 @@
 <div class="overlay" id="overlay-encerrar">
   <div class="modal">
     <h3>Encerrar serviço</h3>
-    <p>Quantas peças foram produzidas?</p>
+    <p>Quantas peças foram produzidas? Aceita decimal — ex: 0,5 se feito em dupla, 0,34 se em trio.</p>
     <div class="qtd-controle">
       <button onclick="alterarQtd(-1)">−</button>
-      <input type="number" id="input-qtd" value="0" inputmode="numeric">
+      <input type="number" id="input-qtd" value="0" step="0.01" inputmode="decimal">
       <button onclick="alterarQtd(1)">+</button>
     </div>
     <div class="modal-acoes">
@@ -532,12 +566,13 @@
 <script>
 // ================== CONFIGURAÇÃO ==================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_5ffI5zZiIaNyOhFfRWVKsarDBAZYeO_xcb9ewe5Kjbb5-oHHqkY-cHuV7CVaDzwm/exec';
+const CHAVE_CRACHA_SALVO = 'moreno_apontamento_cracha';
 // ====================================================
 
 let operadores = [];
 let crachaDigitado = '';
 let sessao = null;              // { nome, cracha }
-let apontamentosAtivos = [];    // [{ id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro, observacao }]
+let apontamentosAtivos = [];    // [{ id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro, observacao, categoria }]
 let timerInterval = null;
 let encerrarIdAtual = null;     // id do apontamento sendo encerrado no modal
 let qtdAtual = 0;
@@ -586,11 +621,23 @@ async function entrar(){
   loading(true);
   try{
     const r = await chamarAPI(null, 'POST', { action:'loginOperador', cracha: crachaDigitado });
-    if(!r.ok){ erroEl.textContent = r.erro || 'Crachá não encontrado'; loading(false); return; }
+    if(!r.ok){
+      erroEl.textContent = r.erro || 'Crachá não encontrado';
+      localStorage.removeItem(CHAVE_CRACHA_SALVO);
+      loading(false);
+      return;
+    }
     sessao = r.operador;
     document.getElementById('header-nome').textContent = sessao.nome;
     document.getElementById('header-cracha').textContent = sessao.cracha;
     document.getElementById('header-op').style.display = 'block';
+
+    const lembrar = document.getElementById('f-lembrar');
+    if(lembrar && lembrar.checked){
+      localStorage.setItem(CHAVE_CRACHA_SALVO, crachaDigitado);
+    } else {
+      localStorage.removeItem(CHAVE_CRACHA_SALVO);
+    }
 
     apontamentosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
 
@@ -610,29 +657,46 @@ function sair(){
   apontamentosAtivos = [];
   clearInterval(timerInterval);
   atualizarDisplayCracha();
+  localStorage.removeItem(CHAVE_CRACHA_SALVO);
   document.getElementById('header-op').style.display = 'none';
   document.getElementById('login-erro').textContent = '';
   mostrarTela('tela-login');
 }
 
-// ---------- alerta visual PJ 1301 ----------
+// ---------- login automático (crachá salvo neste celular) ----------
+async function tentarLoginAutomatico(){
+  const crachaSalvo = localStorage.getItem(CHAVE_CRACHA_SALVO);
+  if(!crachaSalvo) return;
+  crachaDigitado = crachaSalvo;
+  atualizarDisplayCracha();
+  await entrar();
+}
+
+// ---------- categoria/descrição obrigatórias para PJ 1301 ----------
 document.getElementById('f-pj').addEventListener('input', function(){
   const aviso = document.getElementById('aviso-pj');
   const campo = document.getElementById('campo-pj');
-  if(this.value.trim() === '1301'){
-    aviso.style.display = 'block';
-    campo.classList.add('pj-1301');
-  } else {
-    aviso.style.display = 'none';
-    campo.classList.remove('pj-1301');
-  }
+  const campoCategoria = document.getElementById('campo-categoria');
+  const campoObs = document.getElementById('campo-obs');
+  const labelObs = document.getElementById('label-obs');
+  const ehPj1301 = this.value.trim() === '1301';
+
+  campo.classList.toggle('pj-1301', ehPj1301);
+  aviso.style.display = ehPj1301 ? 'block' : 'none';
+  campoCategoria.style.display = ehPj1301 ? 'block' : 'none';
+  campoObs.classList.toggle('obrigatorio-1301', ehPj1301);
+  labelObs.textContent = ehPj1301 ? 'Descrição do serviço (obrigatório)' : 'Observação (opcional)';
 });
 
 // ---------- navegação novo apontamento ----------
 function irParaNovo(){
   ['f-ordem','f-op','f-pj','f-centro','f-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-categoria').value = '';
   document.getElementById('aviso-pj').style.display='none';
   document.getElementById('campo-pj').classList.remove('pj-1301');
+  document.getElementById('campo-categoria').style.display = 'none';
+  document.getElementById('campo-obs').classList.remove('obrigatorio-1301');
+  document.getElementById('label-obs').textContent = 'Observação (opcional)';
   document.getElementById('erro-novo').textContent = '';
   document.getElementById('btn-voltar-lista').style.display = apontamentosAtivos.length > 0 ? 'block' : 'none';
   mostrarTela('tela-novo');
@@ -648,10 +712,22 @@ function tentarIniciarApontamento(){
   const pj = document.getElementById('f-pj').value.trim();
   const centro = document.getElementById('f-centro').value.trim();
   const obs = document.getElementById('f-obs').value.trim();
+  const categoria = document.getElementById('f-categoria').value;
 
   if(!ordem || !op || !pj || !centro){
     erroEl.textContent = 'Preencha Ordem, Operação, PJ e Centro de Trabalho';
     return;
+  }
+
+  if(pj === '1301'){
+    if(!categoria){
+      erroEl.textContent = 'Selecione a categoria do serviço (obrigatório para o PJ 1301)';
+      return;
+    }
+    if(!obs){
+      erroEl.textContent = 'Descreva do que se trata o serviço (obrigatório para o PJ 1301)';
+      return;
+    }
   }
 
   // regra: um apontamento por combinação Ordem + PJ — bloqueia só se essa combinação exata já está ativa
@@ -661,7 +737,7 @@ function tentarIniciarApontamento(){
     return;
   }
 
-  dadosNovoApontamento = { ordem, op, pj, centro, obs };
+  dadosNovoApontamento = { ordem, op, pj, centro, obs, categoria };
 
   // avisa só se existe uma ordem DIFERENTE ativa (mesma ordem com outro PJ não precisa avisar)
   const outrasOrdens = [...new Set(
@@ -685,21 +761,21 @@ function confirmarNovoMesmaOrdem(){
 
 async function iniciarApontamento(){
   const erroEl = document.getElementById('erro-novo');
-  const { ordem, op, pj, centro, obs } = dadosNovoApontamento;
+  const { ordem, op, pj, centro, obs, categoria } = dadosNovoApontamento;
   loading(true);
   try{
     const r = await chamarAPI(null, 'POST', {
       action:'iniciar', cracha:sessao.cracha, nome:sessao.nome,
-      ordem, op, pj, centro, observacao: obs
+      ordem, op, pj, centro, observacao: obs, categoria
     });
     if(!r.ok) throw new Error(r.erro);
     apontamentosAtivos.push({
       id:r.dados.id, inicioTs:r.dados.inicioTs, pausaMin:0, pausadoTs:null,
-      status:'EM ANDAMENTO', ordem, op, pj, centro, observacao: obs
+      status:'EM ANDAMENTO', ordem, op, pj, centro, observacao: obs, categoria
     });
     abrirTelaLista();
   }catch(err){
-    erroEl.textContent = 'Erro ao enviar. Tente novamente.';
+    erroEl.textContent = (err && err.message) ? err.message : 'Erro ao enviar. Tente novamente.';
   }
   loading(false);
 }
@@ -731,6 +807,7 @@ function renderizarLista(){
         <div class="linha"><span>Operação</span><span>${escaparHtml(a.op)}</span></div>
         <div class="linha pj"><span>PJ</span><span>${escaparHtml(a.pj)}</span></div>
         <div class="linha"><span>Centro</span><span>${escaparHtml(a.centro)}</span></div>
+        ${a.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(a.categoria) + '</span></div>' : ''}
       </div>
       <div class="acoes-card">
         <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
@@ -801,11 +878,12 @@ function fecharModalEncerrar(){
   encerrarIdAtual = null;
 }
 function alterarQtd(delta){
-  qtdAtual = Math.max(0, qtdAtual + delta);
+  qtdAtual = Math.max(0, Math.round((qtdAtual + delta) * 100) / 100);
   document.getElementById('input-qtd').value = qtdAtual;
 }
 document.getElementById('input-qtd').addEventListener('input', function(){
-  qtdAtual = Math.max(0, parseInt(this.value)||0);
+  const v = parseFloat(String(this.value).replace(',', '.'));
+  qtdAtual = isNaN(v) ? 0 : Math.max(0, v);
 });
 async function confirmarEncerrar(){
   if(!encerrarIdAtual) return;
@@ -833,6 +911,9 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
+
+// ---------- tenta login automático assim que a página carrega ----------
+tentarLoginAutomatico();
 </script>
 </body>
 </html>
