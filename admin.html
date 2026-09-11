@@ -212,6 +212,28 @@
     font-family:var(--font-mono);color:var(--text-dim);font-size:12px;letter-spacing:2px;text-transform:uppercase;
   }
   .loading-overlay.active{display:flex;}
+
+  /* ---------- APROVAÇÕES ---------- */
+  .card-aprovacao{
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;
+  }
+  .card-aprovacao .topo-aprov{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+  .card-aprovacao .nome-aprov{font-family:var(--font-body);font-weight:700;font-size:15px;}
+  .card-aprovacao .centro-aprov{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .pj-pill{
+    font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--amber);
+    background:var(--bg-elev);border:1px solid var(--amber-dim);padding:5px 10px;border-radius:20px;white-space:nowrap;
+  }
+  .grid-aprov{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:14px;}
+  .grid-aprov .item label{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;}
+  .grid-aprov .item span{font-family:var(--font-mono);font-size:13px;color:var(--text);}
+  .obs-aprov{
+    font-size:13px;color:var(--text-dim);background:var(--bg-elev);border-radius:8px;padding:9px 12px;margin-bottom:14px;line-height:1.4;
+  }
+  .acoes-aprov{display:flex;gap:10px;}
+  .acoes-aprov button{flex:1;padding:11px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:13px;}
+  .btn-aprovar-item{background:var(--green);border:none;color:#fff;}
+  .btn-reprovar-item{background:var(--bg-elev);border:1px solid var(--red-dim);color:#ec8a80;}
 </style>
 </head>
 <body>
@@ -248,6 +270,7 @@
         <button class="tab-btn active" id="tab-operacoes" onclick="mudarAba('operacoes')">OPERAÇÕES ATIVAS</button>
         <button class="tab-btn" id="tab-operadores" onclick="mudarAba('operadores')">OPERADORES</button>
         <button class="tab-btn" id="tab-mapa" onclick="mudarAba('mapa')">MAPA DA FÁBRICA</button>
+        <button class="tab-btn" id="tab-aprovacoes" onclick="mudarAba('aprovacoes')" style="display:none;">APROVAÇÕES</button>
       </div>
 
       <div class="conteudo">
@@ -295,6 +318,15 @@
           </div>
         </div>
 
+        <!-- ABA APROVAÇÕES -->
+        <div id="aba-aprovacoes" style="display:none;">
+          <div class="filtros">
+            <span class="contagem" id="contagem-pendentes"></span>
+            <button class="btn-atualizar" onclick="carregarPendentes()">↻ ATUALIZAR</button>
+          </div>
+          <div id="lista-pendentes"></div>
+        </div>
+
       </div>
     </section>
 
@@ -308,7 +340,7 @@
     <p id="texto-encerrar"></p>
     <div class="qtd-controle">
       <button onclick="alterarQtd(-1)">−</button>
-      <input type="number" id="input-qtd" value="0" inputmode="numeric">
+      <input type="number" id="input-qtd" value="0" step="0.01" inputmode="decimal">
       <button onclick="alterarQtd(1)">+</button>
     </div>
     <div class="modal-acoes">
@@ -433,11 +465,12 @@ const MAPA_POSICOES = {
 };
 
 // ---------- estado ----------
-let admin = null; // { usuario, nome }
+let admin = null; // { usuario, nome, setor }
 let todosAtivos = [];
 let timerInterval = null;
 let encerrarIdAtual = null;
 let qtdAtual = 0;
+let pendentesAprovacao = [];
 
 // ---------- utilidades ----------
 function loading(mostrar){
@@ -454,6 +487,22 @@ function escaparHtml(v){
   d.textContent = v == null ? '' : String(v);
   return d.innerHTML;
 }
+function formatarHora(valor){
+  if(!valor) return '—';
+  try{
+    const d = new Date(valor);
+    if(isNaN(d.getTime())) return String(valor);
+    return d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }catch(e){ return String(valor); }
+}
+function formatarDuracao(min){
+  if(min === null || min === undefined || min === '') return '—';
+  const total = Number(min);
+  if(isNaN(total)) return String(min);
+  const h = Math.floor(total/60);
+  const m = total % 60;
+  return h === 0 ? (m + ' min') : (h + 'h ' + m + 'min');
+}
 
 // ---------- login ----------
 async function entrarAdmin(){
@@ -466,11 +515,12 @@ async function entrarAdmin(){
   try{
     const r = await chamarAPI(null, 'POST', { action:'loginAdmin', usuario, senha });
     if(!r.ok){ erroEl.textContent = r.erro || 'Usuário ou senha inválidos'; loading(false); return; }
-    admin = { usuario, nome: r.nome };
+    admin = { usuario, nome: r.nome, setor: r.setor || '' };
     document.getElementById('header-nome-admin').textContent = r.nome;
     document.getElementById('header-admin').style.display = 'flex';
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('tela-painel').classList.add('active');
+    document.getElementById('tab-aprovacoes').style.display = admin.setor ? 'inline-block' : 'none';
     todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
     popularFiltroOperadores();
     renderizarOperacoes();
@@ -483,11 +533,13 @@ async function entrarAdmin(){
 function sair(){
   admin = null;
   todosAtivos = [];
+  pendentesAprovacao = [];
   clearInterval(timerInterval);
   document.getElementById('f-usuario').value = '';
   document.getElementById('f-senha').value = '';
   document.getElementById('login-erro').textContent = '';
   document.getElementById('header-admin').style.display = 'none';
+  document.getElementById('tab-aprovacoes').style.display = 'none';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tela-login').classList.add('active');
 }
@@ -497,11 +549,14 @@ function mudarAba(nome){
   document.getElementById('tab-operacoes').classList.toggle('active', nome==='operacoes');
   document.getElementById('tab-operadores').classList.toggle('active', nome==='operadores');
   document.getElementById('tab-mapa').classList.toggle('active', nome==='mapa');
+  document.getElementById('tab-aprovacoes').classList.toggle('active', nome==='aprovacoes');
   document.getElementById('aba-operacoes').style.display = nome==='operacoes' ? 'block' : 'none';
   document.getElementById('aba-operadores').style.display = nome==='operadores' ? 'block' : 'none';
   document.getElementById('aba-mapa').style.display = nome==='mapa' ? 'block' : 'none';
+  document.getElementById('aba-aprovacoes').style.display = nome==='aprovacoes' ? 'block' : 'none';
   if(nome==='operadores') renderizarOperadores();
   if(nome==='mapa') renderizarMapa();
+  if(nome==='aprovacoes') carregarPendentes();
 }
 
 // ---------- carregar dados ----------
@@ -723,7 +778,7 @@ function abrirModalEncerrar(id, nome, ordem){
   encerrarIdAtual = id;
   qtdAtual = 0;
   document.getElementById('input-qtd').value = 0;
-  document.getElementById('texto-encerrar').textContent = nome + ' — Ordem ' + ordem + '. Quantas peças foram produzidas?';
+  document.getElementById('texto-encerrar').textContent = nome + ' — Ordem ' + ordem + '. Quantas peças foram produzidas? (aceita decimal, ex: 0,5 ou 0,34 em serviço feito em dupla/trio)';
   document.getElementById('overlay-encerrar').classList.add('active');
 }
 function fecharModalEncerrar(){
@@ -731,11 +786,12 @@ function fecharModalEncerrar(){
   encerrarIdAtual = null;
 }
 function alterarQtd(delta){
-  qtdAtual = Math.max(0, qtdAtual + delta);
+  qtdAtual = Math.max(0, Math.round((qtdAtual + delta) * 100) / 100);
   document.getElementById('input-qtd').value = qtdAtual;
 }
 document.getElementById('input-qtd').addEventListener('input', function(){
-  qtdAtual = Math.max(0, parseInt(this.value)||0);
+  const v = parseFloat(String(this.value).replace(',', '.'));
+  qtdAtual = isNaN(v) ? 0 : Math.max(0, v);
 });
 async function confirmarEncerrar(){
   if(!encerrarIdAtual) return;
@@ -753,6 +809,82 @@ async function confirmarEncerrar(){
     alert('Erro ao encerrar. Tente novamente.');
   }
   loading(false);
+}
+
+// ---------- APROVAÇÕES ----------
+async function carregarPendentes(){
+  if(!admin || !admin.setor) return;
+  const container = document.getElementById('lista-pendentes');
+  container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'listarPendentesAprovacao', setor: admin.setor });
+    if(!r.ok){
+      container.innerHTML = '<div class="vazio-geral"><p>' + escaparHtml(r.erro || 'Erro ao carregar') + '</p></div>';
+      loading(false);
+      return;
+    }
+    pendentesAprovacao = r.pendentes || [];
+    renderizarPendentes();
+  }catch(err){
+    container.innerHTML = '<div class="vazio-geral"><p>Não foi possível conectar. Tente novamente.</p></div>';
+  }
+  loading(false);
+}
+function renderizarPendentes(){
+  document.getElementById('contagem-pendentes').textContent = pendentesAprovacao.length + ' pendente(s)';
+  const container = document.getElementById('lista-pendentes');
+  if(pendentesAprovacao.length === 0){
+    container.innerHTML = '<div class="vazio-geral"><p>Nenhum apontamento do PJ 1301 aguardando aprovação</p></div>';
+    return;
+  }
+  container.innerHTML = pendentesAprovacao.map(item => {
+    const nomeCentro = nomeDoCentro(item.centro);
+    return `
+      <div class="card-aprovacao" data-linha="${item.linha}">
+        <div class="topo-aprov">
+          <div>
+            <div class="nome-aprov">${escaparHtml(item.nome)}</div>
+            <div class="centro-aprov">${escaparHtml(item.centro)}${nomeCentro ? ' — ' + escaparHtml(nomeCentro) : ''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span class="pj-pill">PJ 1301</span>
+            ${item.categoria ? '<span class="pj-pill" style="color:var(--text);border-color:var(--border);">' + escaparHtml(item.categoria) + '</span>' : ''}
+          </div>
+        </div>
+        <div class="grid-aprov">
+          <div class="item"><label>Ordem</label><span>${escaparHtml(item.ordem)}</span></div>
+          <div class="item"><label>OP</label><span>${escaparHtml(item.op)}</span></div>
+          <div class="item"><label>Início</label><span>${formatarHora(item.horaInicio)}</span></div>
+          <div class="item"><label>Fim</label><span>${formatarHora(item.horaFim)}</span></div>
+          <div class="item"><label>Duração</label><span>${formatarDuracao(item.duracaoMin)}</span></div>
+          <div class="item"><label>Qtd.</label><span>${item.quantidade || 0}</span></div>
+        </div>
+        ${item.observacao ? '<div class="obs-aprov"><strong>Descrição do serviço:</strong> ' + escaparHtml(item.observacao) + '</div>' : ''}
+        <div class="acoes-aprov">
+          <button class="btn-reprovar-item" onclick="decidirAprovacao(${item.linha}, false, this)">REPROVAR</button>
+          <button class="btn-aprovar-item" onclick="decidirAprovacao(${item.linha}, true, this)">APROVAR</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+async function decidirAprovacao(linha, aprovado, btnEl){
+  const card = btnEl.closest('.card-aprovacao');
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'aprovarApontamento', linha, aprovado });
+    if(!r.ok){
+      alert(r.erro || 'Não foi possível registrar a decisão.');
+      card.querySelectorAll('button').forEach(b => b.disabled = false);
+      return;
+    }
+    pendentesAprovacao = pendentesAprovacao.filter(p => p.linha !== linha);
+    renderizarPendentes();
+  }catch(err){
+    alert('Erro de conexão. Tente novamente.');
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
 }
 </script>
 </body>
