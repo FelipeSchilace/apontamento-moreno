@@ -230,7 +230,6 @@
   .campo select{appearance:none;-webkit-appearance:none;}
   .campo input:focus, .campo textarea:focus, .campo select:focus{border-color:var(--amber);}
   .campo textarea{resize:none;min-height:60px;}
-  .campo.pj-1301 input{border-color:var(--amber);color:var(--amber);font-weight:600;}
   .campo.obrigatorio-1301 textarea, .campo.obrigatorio-1301 select{border-color:var(--amber);}
   .campo.obrigatorio-1301 label{color:var(--amber);}
   .aviso-pj{
@@ -239,6 +238,41 @@
     color:var(--amber);
     margin-top:6px;
     letter-spacing:0.5px;
+  }
+  .pj-tipo-selector{display:flex;gap:10px;}
+  .pj-tipo-btn{
+    flex:1;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:15px;
+    padding:14px;
+    border-radius:8px;
+  }
+  .pj-tipo-btn.selecionado{border-color:var(--amber);color:var(--amber);background:var(--bg-elev);}
+  .pj-descricao-auto{
+    margin-top:10px;
+    background:var(--bg-elev);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:13px;
+    color:var(--text);
+    line-height:1.4;
+  }
+  .pj-valor-auto{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--amber);
+    margin-top:6px;
+  }
+  .pj-descricao-erro{
+    margin-top:8px;
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--red);
   }
   .btn-primario{
     background:var(--red);
@@ -466,6 +500,8 @@
   }
   .card-relatorio .linha span:first-child{color:var(--text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;}
   .card-relatorio .linha span:last-child{font-weight:600;text-align:right;}
+  .card-relatorio .linha.por-dia{flex-direction:column;align-items:flex-start;}
+  .card-relatorio .linha.por-dia span:last-child{text-align:left;margin-top:4px;font-weight:500;}
 </style>
 </head>
 <body>
@@ -523,21 +559,33 @@
 
       <div class="campo">
         <label>Ordem</label>
-        <input type="text" id="f-ordem" inputmode="numeric">
+        <input type="text" id="f-ordem" inputmode="numeric" pattern="[0-9]*">
       </div>
       <div class="campo">
         <label>Operação (OP)</label>
-        <input type="text" id="f-op">
-      </div>
-      <div class="campo" id="campo-pj">
-        <label>PJ</label>
-        <input type="text" id="f-pj" inputmode="numeric">
-        <div class="aviso-pj" id="aviso-pj" style="display:none;">⚠ Este PJ segue para aprovação — categoria e descrição são obrigatórias</div>
+        <input type="text" id="f-op" inputmode="numeric" pattern="[0-9]*">
       </div>
       <div class="campo">
         <label>Centro de Trabalho</label>
         <input type="text" id="f-centro">
       </div>
+
+      <div class="campo">
+        <label>PJ</label>
+        <div class="pj-tipo-selector">
+          <button type="button" class="pj-tipo-btn" id="btn-pj-ae" onclick="selecionarTipoPj('AE')">AE</button>
+          <button type="button" class="pj-tipo-btn" id="btn-pj-vi" onclick="selecionarTipoPj('VI')">VI</button>
+        </div>
+      </div>
+      <div class="campo" id="campo-pj-numero" style="display:none;">
+        <label>Número do PJ</label>
+        <input type="text" id="f-pj-numero" inputmode="numeric" pattern="[0-9]*">
+        <div class="aviso-pj" id="aviso-pj" style="display:none;">⚠ O PJ AE-1301 segue para aprovação — categoria e descrição são obrigatórias</div>
+        <div class="pj-descricao-auto" id="pj-descricao-auto" style="display:none;"></div>
+        <div class="pj-valor-auto" id="pj-valor-auto" style="display:none;"></div>
+        <div class="pj-descricao-erro" id="pj-descricao-erro" style="display:none;"></div>
+      </div>
+
       <div class="campo" id="campo-categoria" style="display:none;">
         <label>Categoria do serviço</label>
         <select id="f-categoria">
@@ -548,8 +596,8 @@
           <option value="Serviço não previsto">Serviço não previsto</option>
         </select>
       </div>
-      <div class="campo" id="campo-obs">
-        <label id="label-obs">Observação (opcional)</label>
+      <div class="campo obrigatorio-1301" id="campo-obs" style="display:none;">
+        <label>Descrição do serviço (obrigatório para o AE-1301)</label>
         <textarea id="f-obs"></textarea>
       </div>
 
@@ -636,6 +684,12 @@ let timerInterval = null;
 let encerrarIdAtual = null;     // id do apontamento sendo encerrado no modal
 let qtdAtual = 0;
 
+// ---------- estado do seletor de PJ (AE/VI) ----------
+let pjTipoSelecionado = null;
+let pjDescricaoAtual = '';
+let pjValorAtual = null;
+let buscaPjTimeout = null;
+
 // ---------- utilidades ----------
 function mostrarTela(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -651,6 +705,11 @@ async function chamarAPI(params, method, body){
     : {};
   const resp = await fetch(url, opts);
   return await resp.json();
+}
+function escaparHtml(v){
+  const d = document.createElement('div');
+  d.textContent = v == null ? '' : String(v);
+  return d.innerHTML;
 }
 
 // ---------- login ----------
@@ -731,31 +790,85 @@ async function tentarLoginAutomatico(){
   await entrar();
 }
 
-// ---------- categoria/descrição obrigatórias para PJ 1301 ----------
-document.getElementById('f-pj').addEventListener('input', function(){
-  const aviso = document.getElementById('aviso-pj');
-  const campo = document.getElementById('campo-pj');
-  const campoCategoria = document.getElementById('campo-categoria');
-  const campoObs = document.getElementById('campo-obs');
-  const labelObs = document.getElementById('label-obs');
-  const ehPj1301 = this.value.trim() === '1301';
+// ---------- seleção AE/VI e busca automática da descrição do PJ ----------
+function selecionarTipoPj(tipo){
+  pjTipoSelecionado = tipo;
+  document.getElementById('btn-pj-ae').classList.toggle('selecionado', tipo === 'AE');
+  document.getElementById('btn-pj-vi').classList.toggle('selecionado', tipo === 'VI');
+  document.getElementById('campo-pj-numero').style.display = 'block';
+  document.getElementById('f-pj-numero').value = '';
+  pjDescricaoAtual = '';
+  pjValorAtual = null;
+  document.getElementById('pj-descricao-auto').style.display = 'none';
+  document.getElementById('pj-valor-auto').style.display = 'none';
+  document.getElementById('pj-descricao-erro').style.display = 'none';
+  atualizarCamposPj1301(false);
+  document.getElementById('f-pj-numero').focus();
+}
 
-  campo.classList.toggle('pj-1301', ehPj1301);
-  aviso.style.display = ehPj1301 ? 'block' : 'none';
-  campoCategoria.style.display = ehPj1301 ? 'block' : 'none';
-  campoObs.classList.toggle('obrigatorio-1301', ehPj1301);
-  labelObs.textContent = ehPj1301 ? 'Descrição do serviço (obrigatório)' : 'Observação (opcional)';
+function atualizarCamposPj1301(eh1301){
+  document.getElementById('aviso-pj').style.display = eh1301 ? 'block' : 'none';
+  document.getElementById('campo-categoria').style.display = eh1301 ? 'block' : 'none';
+  document.getElementById('campo-obs').style.display = eh1301 ? 'block' : 'none';
+}
+
+document.getElementById('f-pj-numero').addEventListener('input', function(){
+  clearTimeout(buscaPjTimeout);
+  const numero = this.value.trim();
+
+  document.getElementById('pj-descricao-auto').style.display = 'none';
+  document.getElementById('pj-valor-auto').style.display = 'none';
+  document.getElementById('pj-descricao-erro').style.display = 'none';
+  pjDescricaoAtual = '';
+  pjValorAtual = null;
+
+  const eh1301 = pjTipoSelecionado === 'AE' && numero === '1301';
+  atualizarCamposPj1301(eh1301);
+
+  if(eh1301 || !numero || !pjTipoSelecionado) return;
+
+  buscaPjTimeout = setTimeout(() => buscarDescricaoPj(pjTipoSelecionado, numero), 500);
 });
+
+async function buscarDescricaoPj(tipo, numero){
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'buscarPj', tipo, numero });
+    if(!r.ok){
+      document.getElementById('pj-descricao-erro').textContent = r.erro || 'PJ não encontrado na tabela';
+      document.getElementById('pj-descricao-erro').style.display = 'block';
+      return;
+    }
+    pjDescricaoAtual = r.descricao || '';
+    pjValorAtual = (r.valor === undefined || r.valor === null) ? null : r.valor;
+    const elDesc = document.getElementById('pj-descricao-auto');
+    elDesc.textContent = pjDescricaoAtual || '(sem descrição cadastrada pra esse PJ)';
+    elDesc.style.display = 'block';
+    if(pjValorAtual !== null){
+      const elValor = document.getElementById('pj-valor-auto');
+      elValor.textContent = 'Valor unitário: R$ ' + pjValorAtual.toFixed(2).replace('.', ',');
+      elValor.style.display = 'block';
+    }
+  }catch(err){
+    document.getElementById('pj-descricao-erro').textContent = 'Erro ao buscar o PJ. Tente novamente.';
+    document.getElementById('pj-descricao-erro').style.display = 'block';
+  }
+}
 
 // ---------- navegação novo apontamento ----------
 function irParaNovo(){
-  ['f-ordem','f-op','f-pj','f-centro','f-obs'].forEach(id=>document.getElementById(id).value='');
+  ['f-ordem','f-op','f-centro','f-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-pj-numero').value = '';
   document.getElementById('f-categoria').value = '';
-  document.getElementById('aviso-pj').style.display='none';
-  document.getElementById('campo-pj').classList.remove('pj-1301');
-  document.getElementById('campo-categoria').style.display = 'none';
-  document.getElementById('campo-obs').classList.remove('obrigatorio-1301');
-  document.getElementById('label-obs').textContent = 'Observação (opcional)';
+  pjTipoSelecionado = null;
+  pjDescricaoAtual = '';
+  pjValorAtual = null;
+  document.getElementById('btn-pj-ae').classList.remove('selecionado');
+  document.getElementById('btn-pj-vi').classList.remove('selecionado');
+  document.getElementById('campo-pj-numero').style.display = 'none';
+  document.getElementById('pj-descricao-auto').style.display = 'none';
+  document.getElementById('pj-valor-auto').style.display = 'none';
+  document.getElementById('pj-descricao-erro').style.display = 'none';
+  atualizarCamposPj1301(false);
   document.getElementById('erro-novo').textContent = '';
   document.getElementById('btn-voltar-lista').style.display = apontamentosAtivos.length > 0 ? 'block' : 'none';
   mostrarTela('tela-novo');
@@ -768,34 +881,48 @@ function tentarIniciarApontamento(){
   erroEl.textContent = '';
   const ordem = document.getElementById('f-ordem').value.trim();
   const op = document.getElementById('f-op').value.trim();
-  const pj = document.getElementById('f-pj').value.trim();
   const centro = document.getElementById('f-centro').value.trim();
-  const obs = document.getElementById('f-obs').value.trim();
+  const pjNumero = document.getElementById('f-pj-numero').value.trim();
   const categoria = document.getElementById('f-categoria').value;
+  const obsManual = document.getElementById('f-obs').value.trim();
 
-  if(!ordem || !op || !pj || !centro){
-    erroEl.textContent = 'Preencha Ordem, Operação, PJ e Centro de Trabalho';
+  if(!ordem || !op || !centro){
+    erroEl.textContent = 'Preencha Ordem, Operação e Centro de Trabalho';
+    return;
+  }
+  if(!pjTipoSelecionado || !pjNumero){
+    erroEl.textContent = 'Selecione AE ou VI e digite o número do PJ';
     return;
   }
 
-  if(pj === '1301'){
+  const eh1301 = pjTipoSelecionado === 'AE' && pjNumero === '1301';
+  let observacaoFinal;
+  if(eh1301){
     if(!categoria){
-      erroEl.textContent = 'Selecione a categoria do serviço (obrigatório para o PJ 1301)';
+      erroEl.textContent = 'Selecione a categoria do serviço (obrigatório para o PJ AE-1301)';
       return;
     }
-    if(!obs){
-      erroEl.textContent = 'Descreva do que se trata o serviço (obrigatório para o PJ 1301)';
+    if(!obsManual){
+      erroEl.textContent = 'Descreva do que se trata o serviço (obrigatório para o PJ AE-1301)';
       return;
     }
+    observacaoFinal = obsManual;
+  } else {
+    if(!pjDescricaoAtual){
+      erroEl.textContent = 'Aguarde a busca da descrição do PJ ou confira se o número está certo';
+      return;
+    }
+    observacaoFinal = pjDescricaoAtual;
   }
 
-  const mesmaCombinacao = apontamentosAtivos.find(a => String(a.ordem).trim() === ordem && String(a.pj).trim() === pj);
+  const pjExibicao = pjTipoSelecionado + '-' + pjNumero;
+  const mesmaCombinacao = apontamentosAtivos.find(a => String(a.ordem).trim() === ordem && String(a.pj).trim() === pjExibicao);
   if(mesmaCombinacao){
-    erroEl.textContent = 'Já existe um apontamento ativo para a ordem Nº ' + ordem + ' com o PJ ' + pj + '.';
+    erroEl.textContent = 'Já existe um apontamento ativo para a ordem Nº ' + ordem + ' com o PJ ' + pjExibicao + '.';
     return;
   }
 
-  dadosNovoApontamento = { ordem, op, pj, centro, obs, categoria };
+  dadosNovoApontamento = { ordem, op, pjTipo: pjTipoSelecionado, pjNumero, centro, obs: observacaoFinal, categoria };
 
   const outrasOrdens = [...new Set(
     apontamentosAtivos.filter(a => String(a.ordem).trim() !== ordem).map(a => String(a.ordem).trim())
@@ -818,17 +945,17 @@ function confirmarNovoMesmaOrdem(){
 
 async function iniciarApontamento(){
   const erroEl = document.getElementById('erro-novo');
-  const { ordem, op, pj, centro, obs, categoria } = dadosNovoApontamento;
+  const { ordem, op, pjTipo, pjNumero, centro, obs, categoria } = dadosNovoApontamento;
   loading(true);
   try{
     const r = await chamarAPI(null, 'POST', {
       action:'iniciar', cracha:sessao.cracha, nome:sessao.nome,
-      ordem, op, pj, centro, observacao: obs, categoria
+      ordem, op, pjTipo, pjNumero, centro, observacao: obs, categoria
     });
     if(!r.ok) throw new Error(r.erro);
     apontamentosAtivos.push({
       id:r.dados.id, inicioTs:r.dados.inicioTs, pausaMin:0, pausadoTs:null,
-      status:'EM ANDAMENTO', ordem, op, pj, centro, observacao: obs, categoria
+      status:'EM ANDAMENTO', ordem, op, pj: pjTipo + '-' + pjNumero, centro, observacao: obs, categoria
     });
     abrirTelaLista();
   }catch(err){
@@ -865,6 +992,7 @@ function renderizarLista(){
         <div class="linha pj"><span>PJ</span><span>${escaparHtml(a.pj)}</span></div>
         <div class="linha"><span>Centro</span><span>${escaparHtml(a.centro)}</span></div>
         ${a.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(a.categoria) + '</span></div>' : ''}
+        ${a.observacao ? '<div class="linha"><span>Descrição</span><span>' + escaparHtml(a.observacao) + '</span></div>' : ''}
       </div>
       <div class="acoes-card">
         <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
@@ -873,11 +1001,6 @@ function renderizarLista(){
     </div>
   `).join('');
   atualizarTodosCronometros();
-}
-function escaparHtml(v){
-  const d = document.createElement('div');
-  d.textContent = v == null ? '' : String(v);
-  return d.innerHTML;
 }
 function atualizarTodosCronometros(){
   apontamentosAtivos.forEach(a => {
@@ -1019,6 +1142,8 @@ function renderizarRelatorio(){
 
   const totalMin = ultimoRelatorio.reduce((s,r) => s + (Number(r.duracaoMin)||0), 0);
   const totalQtd = ultimoRelatorio.reduce((s,r) => s + (Number(r.quantidade)||0), 0);
+  const totalValor = ultimoRelatorio.reduce((s,r) => s + (Number(r.valorTotal)||0), 0);
+  const temManual = ultimoRelatorio.some(r => r.valorManual);
   const h = Math.floor(totalMin/60);
   const m = totalMin % 60;
 
@@ -1028,6 +1153,7 @@ function renderizarRelatorio(){
       <div class="linha"><span>Apontamentos</span><span>${ultimoRelatorio.length}</span></div>
       <div class="linha"><span>Duração total</span><span>${h}h ${m}min</span></div>
       <div class="linha"><span>Quantidade total</span><span>${String(totalQtd).replace('.', ',')}</span></div>
+      <div class="linha"><span>Valor total${temManual ? ' (exceto AE-1301)' : ''}</span><span>${formatarValor(totalValor)}</span></div>
     </div>
   `;
 
@@ -1038,9 +1164,13 @@ function renderizarRelatorio(){
       <div class="linha"><span>PJ</span><span>${escaparHtml(r.pj)}</span></div>
       <div class="linha"><span>Centro</span><span>${escaparHtml(r.centro)}</span></div>
       ${r.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(r.categoria) + '</span></div>' : ''}
+      ${r.observacao ? '<div class="linha"><span>Descrição</span><span>' + escaparHtml(r.observacao) + '</span></div>' : ''}
       <div class="linha"><span>Início / Fim</span><span>${formatarHoraCurta(r.horaInicio)} – ${formatarHoraCurta(r.horaFim)}</span></div>
       <div class="linha"><span>Duração</span><span>${formatarDuracaoCurta(r.duracaoMin)}</span></div>
+      ${temMaisDeUmDia(r.porDia) ? '<div class="linha por-dia"><span>Tempo por dia</span><span>' + escaparHtml(formatarPorDia(r.porDia)) + '</span></div>' : ''}
       <div class="linha"><span>Qtd.</span><span>${String(r.quantidade||0).replace('.', ',')}</span></div>
+      <div class="linha"><span>Valor</span><span>${r.valorManual ? 'Manual (AE-1301)' : formatarValor(r.valorTotal)}</span></div>
+      ${r.aprovacao ? '<div class="linha"><span>Aprovação</span><span>' + escaparHtml(traduzirAprovacao(r.aprovacao)) + '</span></div>' : ''}
       <div class="linha"><span>Status</span><span>${escaparHtml(r.status)}</span></div>
     </div>
   `).join('');
@@ -1068,17 +1198,41 @@ function formatarDuracaoCurta(min){
   const m = total % 60;
   return h === 0 ? (m + ' min') : (h + 'h ' + m + 'min');
 }
+function formatarValor(v){
+  if(v === null || v === undefined || isNaN(Number(v))) return '—';
+  return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+}
+function traduzirAprovacao(status){
+  if(status === 'PENDENTE') return 'Pendente';
+  if(status === 'APROVADO') return 'Aprovado';
+  if(status === 'REPROVADO') return 'Reprovado';
+  return status;
+}
+function temMaisDeUmDia(porDia){
+  return porDia && Object.keys(porDia).length > 1;
+}
+function formatarPorDia(porDia){
+  return Object.keys(porDia).sort().map(function(iso){
+    const partes = iso.split('-');
+    const dataCurta = partes[2] + '/' + partes[1];
+    return dataCurta + ': ' + formatarDuracaoCurta(porDia[iso]);
+  }).join(' · ');
+}
 
 function baixarCsvRelatorio(){
   if(!ultimoRelatorio || ultimoRelatorio.length === 0) return;
-  const linhas = ['Data;Ordem;OP;PJ;Centro;Categoria;Inicio;Fim;Duracao(min);Pausa(min);Quantidade;Status'];
+  const linhas = ['Data;Ordem;OP;PJ;Centro;Categoria;Descricao;Inicio;Fim;Duracao(min);TempoPorDia;Pausa(min);Quantidade;Valor;Aprovacao;Status'];
   ultimoRelatorio.forEach(r => {
     linhas.push([
       formatarDataCurta(r.data),
-      r.ordem, r.op, r.pj, r.centro, r.categoria || '',
+      r.ordem, r.op, r.pj, r.centro, r.categoria || '', (r.observacao || '').replace(/;/g, ','),
       formatarHoraCurta(r.horaInicio), formatarHoraCurta(r.horaFim),
-      r.duracaoMin || 0, r.pausaMin || 0,
+      r.duracaoMin || 0,
+      temMaisDeUmDia(r.porDia) ? formatarPorDia(r.porDia).replace(/;/g, ',') : '',
+      r.pausaMin || 0,
       String(r.quantidade || 0).replace('.', ','),
+      r.valorManual ? 'MANUAL' : (r.valorTotal != null ? String(r.valorTotal).replace('.', ',') : ''),
+      r.aprovacao || '',
       r.status
     ].join(';'));
   });
