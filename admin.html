@@ -6,6 +6,7 @@
 <title>Moreno Fundição — Painel Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#121212;
@@ -128,6 +129,12 @@
   .card-op .linha.pj span:last-child{color:var(--amber);}
   .card-op .linha.descricao{flex-direction:column;align-items:flex-start;}
   .card-op .linha.descricao span:last-child{text-align:left;margin-top:3px;font-weight:500;color:var(--text-dim);line-height:1.4;}
+  .card-op.excedido{border-color:var(--red);}
+  .aviso-excedido{
+    background:rgba(198,40,40,0.15);border:1px solid var(--red);color:#ff8a80;
+    font-family:var(--font-mono);font-size:11px;letter-spacing:0.3px;
+    padding:8px 10px;border-radius:8px;margin-bottom:12px;line-height:1.4;
+  }
   .acoes-card{display:flex;gap:8px;}
   .btn-pausar{
     flex:1;background:var(--bg-elev);border:1px solid var(--amber-dim);color:var(--amber);
@@ -273,6 +280,7 @@
         <button class="tab-btn" id="tab-operadores" onclick="mudarAba('operadores')">OPERADORES</button>
         <button class="tab-btn" id="tab-mapa" onclick="mudarAba('mapa')">MAPA DA FÁBRICA</button>
         <button class="tab-btn" id="tab-aprovacoes" onclick="mudarAba('aprovacoes')" style="display:none;">APROVAÇÕES</button>
+        <button class="tab-btn" id="tab-consolidado" onclick="mudarAba('consolidado')" style="display:none;">CONSOLIDADO</button>
       </div>
 
       <div class="conteudo">
@@ -323,10 +331,24 @@
         <!-- ABA APROVAÇÕES -->
         <div id="aba-aprovacoes" style="display:none;">
           <div class="filtros">
+            <button class="tab-btn active" id="subtab-pendentes" onclick="mudarSubAbaAprov('pendentes')" style="padding:8px 14px;font-size:12px;">PENDENTES</button>
+            <button class="tab-btn" id="subtab-decididos" onclick="mudarSubAbaAprov('decididos')" style="padding:8px 14px;font-size:12px;">DECIDIDOS</button>
             <span class="contagem" id="contagem-pendentes"></span>
-            <button class="btn-atualizar" onclick="carregarPendentes()">↻ ATUALIZAR</button>
+            <button class="btn-atualizar" onclick="mudarSubAbaAprov(subAbaAprovAtual)">↻ ATUALIZAR</button>
           </div>
           <div id="lista-pendentes"></div>
+          <div id="lista-decididos" style="display:none;"></div>
+        </div>
+
+        <!-- ABA CONSOLIDADO -->
+        <div id="aba-consolidado" style="display:none;">
+          <div class="filtros">
+            <input type="month" id="f-mes-consolidado" style="background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:13px;padding:10px 14px;border-radius:8px;">
+            <button class="btn-atualizar" style="margin-left:0;" onclick="carregarConsolidado()">GERAR</button>
+            <button class="btn-atualizar" onclick="baixarConsolidadoExcel()">⬇ BAIXAR EXCEL</button>
+            <span class="contagem" id="contagem-consolidado"></span>
+          </div>
+          <div id="lista-consolidado"></div>
         </div>
 
       </div>
@@ -525,6 +547,7 @@ async function entrarAdmin(){
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('tela-painel').classList.add('active');
     document.getElementById('tab-aprovacoes').style.display = admin.setor ? 'inline-block' : 'none';
+    document.getElementById('tab-consolidado').style.display = admin.setor ? 'inline-block' : 'none';
     todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
     popularFiltroOperadores();
     renderizarOperacoes();
@@ -544,6 +567,7 @@ function sair(){
   document.getElementById('login-erro').textContent = '';
   document.getElementById('header-admin').style.display = 'none';
   document.getElementById('tab-aprovacoes').style.display = 'none';
+  document.getElementById('tab-consolidado').style.display = 'none';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tela-login').classList.add('active');
 }
@@ -554,13 +578,19 @@ function mudarAba(nome){
   document.getElementById('tab-operadores').classList.toggle('active', nome==='operadores');
   document.getElementById('tab-mapa').classList.toggle('active', nome==='mapa');
   document.getElementById('tab-aprovacoes').classList.toggle('active', nome==='aprovacoes');
+  document.getElementById('tab-consolidado').classList.toggle('active', nome==='consolidado');
   document.getElementById('aba-operacoes').style.display = nome==='operacoes' ? 'block' : 'none';
   document.getElementById('aba-operadores').style.display = nome==='operadores' ? 'block' : 'none';
   document.getElementById('aba-mapa').style.display = nome==='mapa' ? 'block' : 'none';
   document.getElementById('aba-aprovacoes').style.display = nome==='aprovacoes' ? 'block' : 'none';
+  document.getElementById('aba-consolidado').style.display = nome==='consolidado' ? 'block' : 'none';
   if(nome==='operadores') renderizarOperadores();
   if(nome==='mapa') renderizarMapa();
-  if(nome==='aprovacoes') carregarPendentes();
+  if(nome==='aprovacoes') mudarSubAbaAprov('pendentes');
+  if(nome==='consolidado' && !document.getElementById('f-mes-consolidado').value){
+    const hoje = new Date();
+    document.getElementById('f-mes-consolidado').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  }
 }
 
 // ---------- carregar dados ----------
@@ -626,7 +656,7 @@ function renderizarOperacoes(){
 function cardOperacao(a){
   const nomeCentro = nomeDoCentro(a.centro);
   return `
-    <div class="card-op" data-id="${a.id}">
+    <div class="card-op" data-id="${a.id}" id="card-${a.id}">
       <div class="topo">
         <span class="status-pill ${a.status==='PAUSADO'?'pausado':''}">${a.status==='PAUSADO'?'PAUSADO':'EM ANDAMENTO'}</span>
         <span class="cronometro ${a.status==='PAUSADO'?'pausado-txt':''}" id="crono-${a.id}">00:00:00</span>
@@ -638,6 +668,7 @@ function cardOperacao(a){
       <div class="linha"><span>Centro</span><span title="${nomeCentro?escaparHtml(nomeCentro):''}">${escaparHtml(a.centro)}${nomeCentro ? ' — '+escaparHtml(nomeCentro) : ''}</span></div>
       ${a.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(a.categoria) + '</span></div>' : ''}
       ${a.observacao ? '<div class="linha descricao"><span>Descrição</span><span>' + escaparHtml(a.observacao) + '</span></div>' : ''}
+      <div class="aviso-excedido" id="excedido-${a.id}" style="display:none;">⚠ Essa ordem excedeu o tempo previsto</div>
       <div class="acoes-card">
         <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
         <button class="btn-encerrar" onclick="abrirModalEncerrar('${a.id}','${escaparHtml(a.nome)}','${escaparHtml(a.ordem)}')">ENCERRAR</button>
@@ -662,6 +693,15 @@ function atualizarCronometros(){
     const m = String(Math.floor((totalSeg%3600)/60)).padStart(2,'0');
     const s = String(totalSeg%60).padStart(2,'0');
     el.textContent = h+':'+m+':'+s;
+
+    const avisoEl = document.getElementById('excedido-' + a.id);
+    const cardEl = document.getElementById('card-' + a.id);
+    if(avisoEl){
+      const previstoMs = (a.tempoPrevistoHoras != null) ? a.tempoPrevistoHoras * 3600000 : null;
+      const excedido = previstoMs != null && decorridoMs > previstoMs;
+      avisoEl.style.display = excedido ? 'block' : 'none';
+      if(cardEl) cardEl.classList.toggle('excedido', excedido);
+    }
   });
 }
 
@@ -879,7 +919,7 @@ async function decidirAprovacao(linha, aprovado, btnEl){
   const card = btnEl.closest('.card-aprovacao');
   card.querySelectorAll('button').forEach(b => b.disabled = true);
   try{
-    const r = await chamarAPI(null, 'POST', { action:'aprovarApontamento', linha, aprovado });
+    const r = await chamarAPI(null, 'POST', { action:'aprovarApontamento', linha, aprovado, aprovadoPor: admin.nome });
     if(!r.ok){
       alert(r.erro || 'Não foi possível registrar a decisão.');
       card.querySelectorAll('button').forEach(b => b.disabled = false);
@@ -891,6 +931,115 @@ async function decidirAprovacao(linha, aprovado, btnEl){
     alert('Erro de conexão. Tente novamente.');
     card.querySelectorAll('button').forEach(b => b.disabled = false);
   }
+}
+
+// ---------- APROVAÇÕES: sub-abas Pendentes / Decididos ----------
+let subAbaAprovAtual = 'pendentes';
+let decididosAprovacao = [];
+async function mudarSubAbaAprov(sub){
+  subAbaAprovAtual = sub;
+  document.getElementById('subtab-pendentes').classList.toggle('active', sub==='pendentes');
+  document.getElementById('subtab-decididos').classList.toggle('active', sub==='decididos');
+  document.getElementById('lista-pendentes').style.display = sub==='pendentes' ? 'block' : 'none';
+  document.getElementById('lista-decididos').style.display = sub==='decididos' ? 'block' : 'none';
+  if(sub==='pendentes') await carregarPendentes();
+  else await carregarDecididos();
+}
+async function carregarDecididos(){
+  if(!admin || !admin.setor) return;
+  const container = document.getElementById('lista-decididos');
+  container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'listarDecisoesAprovacao', setor: admin.setor, limite: 50 });
+    if(!r.ok){
+      container.innerHTML = '<div class="vazio-geral"><p>' + escaparHtml(r.erro || 'Erro ao carregar') + '</p></div>';
+      loading(false);
+      return;
+    }
+    decididosAprovacao = r.decididos || [];
+    document.getElementById('contagem-pendentes').textContent = decididosAprovacao.length + ' decidido(s) recentemente';
+    if(decididosAprovacao.length === 0){
+      container.innerHTML = '<div class="vazio-geral"><p>Nenhuma decisão registrada ainda</p></div>';
+    } else {
+      container.innerHTML = decididosAprovacao.map(item => `
+        <div class="card-aprovacao">
+          <div class="topo-aprov">
+            <div>
+              <div class="nome-aprov">${escaparHtml(item.nome)}</div>
+              <div class="centro-aprov">Ordem ${escaparHtml(item.ordem)} — ${escaparHtml(item.centro)}${item.categoria ? ' · ' + escaparHtml(item.categoria) : ''}</div>
+            </div>
+            <span class="pj-pill" style="${item.status==='APROVADO' ? 'color:var(--green);border-color:var(--green);' : 'color:#ec8a80;border-color:var(--red-dim);'}">${item.status}</span>
+          </div>
+          ${item.observacao ? '<div class="obs-aprov">' + escaparHtml(item.observacao) + '</div>' : ''}
+          <div class="centro-aprov">Decidido por <strong style="color:var(--text);">${escaparHtml(item.aprovadoPor || '—')}</strong> em ${formatarHora(item.aprovadoEm) !== '—' ? new Date(item.aprovadoEm).toLocaleString('pt-BR') : '—'}</div>
+        </div>
+      `).join('');
+    }
+  }catch(err){
+    container.innerHTML = '<div class="vazio-geral"><p>Não foi possível conectar. Tente novamente.</p></div>';
+  }
+  loading(false);
+}
+
+// ---------- CONSOLIDADO (painel de pagamento) ----------
+let ultimoConsolidado = [];
+async function carregarConsolidado(){
+  const valor = document.getElementById('f-mes-consolidado').value;
+  if(!valor) return;
+  const [anoStr, mesStr] = valor.split('-');
+  const container = document.getElementById('lista-consolidado');
+  container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'relatorioConsolidado', ano:Number(anoStr), mes:Number(mesStr), setor: admin.setor });
+    if(!r.ok){
+      container.innerHTML = '<div class="vazio-geral"><p>' + escaparHtml(r.erro || 'Erro ao carregar') + '</p></div>';
+      loading(false);
+      return;
+    }
+    ultimoConsolidado = r.operadores || [];
+    document.getElementById('contagem-consolidado').textContent = ultimoConsolidado.length + ' operador(es)';
+    if(ultimoConsolidado.length === 0){
+      container.innerHTML = '<div class="vazio-geral"><p>Nenhum apontamento nesse mês</p></div>';
+    } else {
+      const totalGeral = ultimoConsolidado.reduce((s,o) => s + o.valorTotal, 0);
+      container.innerHTML = `
+        <div class="card-resumo-consolidado" style="background:var(--bg-panel);border:1px solid var(--amber-dim);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;">
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;">Total geral do mês</span>
+          <span style="font-family:var(--font-mono);font-weight:700;color:var(--amber);">R$ ${totalGeral.toFixed(2).replace('.',',')}</span>
+        </div>
+      ` + ultimoConsolidado.map(o => `
+        <div class="card-operador" style="margin-bottom:10px;">
+          <div>
+            <div class="nome">${escaparHtml(o.nome)}${o.temManual ? ' <span style="font-family:var(--font-mono);font-size:10px;color:var(--amber);">(tem AE-1301 manual)</span>' : ''}</div>
+            <div class="detalhe">${o.apontamentos} apontamento(s) · qtd. total ${String(o.quantidadeTotal).replace('.',',')}</div>
+          </div>
+          <div class="qtd-badge" style="color:var(--amber);font-weight:700;">R$ ${o.valorTotal.toFixed(2).replace('.',',')}</div>
+        </div>
+      `).join('');
+    }
+  }catch(err){
+    container.innerHTML = '<div class="vazio-geral"><p>Não foi possível conectar. Tente novamente.</p></div>';
+  }
+  loading(false);
+}
+function baixarConsolidadoExcel(){
+  if(!ultimoConsolidado || ultimoConsolidado.length === 0){ alert('Gere o consolidado primeiro.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Biblioteca de Excel ainda carregando, tente de novo em instantes.'); return; }
+  const linhas = ultimoConsolidado.map(o => ({
+    'Operador': o.nome,
+    'Crachá': o.cracha,
+    'Apontamentos': o.apontamentos,
+    'Quantidade total': o.quantidadeTotal,
+    'Valor total (R$)': o.valorTotal,
+    'Tem AE-1301 manual': o.temManual ? 'Sim' : 'Não'
+  }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
+  const mesValor = document.getElementById('f-mes-consolidado').value;
+  XLSX.writeFile(wb, 'consolidado_' + mesValor + '.xlsx');
 }
 </script>
 </body>
