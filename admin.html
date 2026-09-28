@@ -374,6 +374,32 @@
   </div>
 </div>
 
+<!-- MODAL RELATÓRIO DO OPERADOR (consolidado) -->
+<div class="overlay" id="overlay-rel-operador">
+  <div class="modal" style="max-width:900px;max-height:90vh;overflow:auto;">
+    <h3 id="rel-op-titulo">RELATÓRIO</h3>
+    <p id="rel-op-sub"></p>
+    <div style="overflow-x:auto;">
+      <table id="rel-op-tabela" style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;text-transform:uppercase;">
+        <thead>
+          <tr style="color:var(--text-dim);text-align:left;">
+            <th style="padding:8px;border-bottom:1px solid var(--border);">PJ</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);">QUANTIDADE</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);">ORDEM</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);">OP</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);">OBSERVAÇÃO</th>
+          </tr>
+        </thead>
+        <tbody id="rel-op-corpo"></tbody>
+      </table>
+    </div>
+    <div class="modal-acoes" style="margin-top:18px;">
+      <button class="btn-cancelar" onclick="document.getElementById('overlay-rel-operador').classList.remove('active')">FECHAR</button>
+      <button class="btn-confirmar" onclick="baixarRelatorioOperadorExcel()">⬇ EXCEL</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading">CARREGANDO...</div>
 
 <script>
@@ -1010,7 +1036,7 @@ async function carregarConsolidado(){
           <span style="font-family:var(--font-mono);font-weight:700;color:var(--amber);">R$ ${totalGeral.toFixed(2).replace('.',',')}</span>
         </div>
       ` + ultimoConsolidado.map(o => `
-        <div class="card-operador" style="margin-bottom:10px;">
+        <div class="card-operador" style="margin-bottom:10px;cursor:pointer;" onclick="abrirRelatorioOperador('${escaparHtml(o.cracha)}','${escaparHtml(o.nome)}')">
           <div>
             <div class="nome">${escaparHtml(o.nome)}${o.temManual ? ' <span style="font-family:var(--font-mono);font-size:10px;color:var(--amber);">(tem AE-1301 manual)</span>' : ''}</div>
             <div class="detalhe">${o.apontamentos} apontamento(s) · qtd. total ${String(o.quantidadeTotal).replace('.',',')}</div>
@@ -1040,6 +1066,53 @@ function baixarConsolidadoExcel(){
   XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
   const mesValor = document.getElementById('f-mes-consolidado').value;
   XLSX.writeFile(wb, 'consolidado_' + mesValor + '.xlsx');
+}
+
+// ---------- CONSOLIDADO: relatório de um operador ----------
+let relOperadorLinhas = [];
+let relOperadorNome = '';
+async function abrirRelatorioOperador(cracha, nome){
+  const valor = document.getElementById('f-mes-consolidado').value;
+  if(!valor) return;
+  const [anoStr, mesStr] = valor.split('-');
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'relatorioOperador', cracha, ano:Number(anoStr), mes:Number(mesStr) });
+    if(!r.ok) throw new Error(r.erro);
+    relOperadorNome = nome;
+    relOperadorLinhas = (r.registros || []).map(x => ({
+      pj: String(x.pj || '').toUpperCase(),
+      quantidade: String(x.quantidade || 0).replace('.', ','),
+      ordem: String(x.ordem || '').toUpperCase(),
+      op: String(x.op || '').toUpperCase(),
+      observacao: (String(x.ordem || '') + ' - ' + String(x.op || '') + ' - ' + String(x.observacao || '')).toUpperCase()
+    }));
+    document.getElementById('rel-op-titulo').textContent = nome.toUpperCase();
+    document.getElementById('rel-op-sub').textContent = 'RELATÓRIO DE ' + valor + ' — ' + relOperadorLinhas.length + ' APONTAMENTO(S)';
+    document.getElementById('rel-op-corpo').innerHTML = relOperadorLinhas.length === 0
+      ? '<tr><td colspan="5" style="padding:14px;color:var(--text-dim);">NENHUM APONTAMENTO NESSE MÊS</td></tr>'
+      : relOperadorLinhas.map(l => `
+        <tr>
+          <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--amber);">${escaparHtml(l.pj)}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.quantidade)}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.ordem)}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.op)}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.observacao)}</td>
+        </tr>`).join('');
+    document.getElementById('overlay-rel-operador').classList.add('active');
+  }catch(err){
+    alert('Erro ao carregar o relatório do operador.');
+  }
+  loading(false);
+}
+function baixarRelatorioOperadorExcel(){
+  if(relOperadorLinhas.length === 0){ alert('Sem dados pra exportar.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Biblioteca de Excel ainda carregando, tente de novo.'); return; }
+  const linhas = relOperadorLinhas.map(l => ({ 'PJ': l.pj, 'QUANTIDADE': l.quantidade, 'ORDEM': l.ordem, 'OP': l.op, 'OBSERVAÇÃO': l.observacao }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'RELATORIO');
+  XLSX.writeFile(wb, 'relatorio_' + relOperadorNome.replace(/\s+/g,'_') + '_' + document.getElementById('f-mes-consolidado').value + '.xlsx');
 }
 </script>
 </body>
