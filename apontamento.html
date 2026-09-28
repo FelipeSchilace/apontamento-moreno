@@ -567,7 +567,9 @@
       </div>
       <div class="campo">
         <label>Centro de Trabalho</label>
-        <input type="text" id="f-centro">
+        <input type="text" id="f-centro" list="lista-centros" autocomplete="off" placeholder="Digite o código e escolha da lista">
+        <datalist id="lista-centros"></datalist>
+        <div class="aviso-pj" id="centro-info" style="display:none;"></div>
       </div>
 
       <div class="campo">
@@ -689,6 +691,78 @@ let pjTipoSelecionado = null;
 let pjDescricaoAtual = '';
 let pjValorAtual = null;
 let buscaPjTimeout = null;
+
+const CENTROS = {
+  '511084': 'SOLDA',
+  '511089': 'MONTAGEM / DESMONTAGEM',
+  '511091': 'GRAFITAMENTO',
+  '511102': 'MANDRILHADORA MFZ 110 ZOCCA',
+  '511105': 'ARCO SUBMERSO DUPLO CABEÇOTE BAMBOZZI',
+  '511106': 'PLAINA DE MESA POREBA',
+  '511107': 'PLAINA DE MESA INGERSOL',
+  '511112': 'FURADEIRA RADIAL HCP',
+  '511113': 'FURADEIRA RADIAL CSEPEL HUNGARY 264',
+  '511114': 'FURADEIRA RADIAL ROCCO',
+  '511115': 'FURADEIRA RADIAL',
+  '511117': 'TORNO FICHER TP 3000',
+  '511118': 'TORNO FICHER TP 4000',
+  '511119': 'TORNO NARDINI AM-600-C',
+  '511120': 'TORNO TONANI TP-90',
+  '511121': 'TORNO TOS SKJ-85',
+  '511122': 'TORNO ROMI S-30',
+  '511123': 'TORNO VERTICAL LOUIS SOEST DUSSEL',
+  '511124': 'TORNO VERTICAL WEBSTER BENNETT',
+  '511125': 'FURADEIRA RADIAL VR8',
+  '511151': 'MANDRILHADORA FISCHER',
+  '521210': 'MANDRILHADORA SCHIESS A.G. FB 28/16',
+  '521284': 'MANDRILHADORA WOTAN',
+  '521285': 'TORNO VERTICAL TITAN SC-4000',
+  '521327': 'MANDRILHADORA SKODA 3500 X 4500',
+  '521328': 'TORNO POREBA 1600 X 6000',
+  '521374': 'PLAINA WALDRICH',
+  '521393': 'TORNO POREBA',
+  '511394': 'TORNO HORIZONTAL TOS SU-125',
+  '521395': 'TORNO VERTICAL SCHIESS KZ-200',
+  '521396': 'TORNO VERTICAL TITAN SC-27',
+  '521433': 'MANDRILHADORA SCHARMAN',
+  '521459': 'FRESADORA TOZ KURIN',
+  '521472': 'MANDRILHADORA TOS WHN(Q)',
+  '521489': 'BROQUEADEIRA DE MOENDA',
+  '521493': 'MANDRILHADORA TOS WHN(Q)',
+  '521496': 'TORNO VERTICAL SCHIESS Ø8000 - TVG',
+  '521505': 'TORNO HORIZONTAL POREBA',
+  '521544': 'CELULA DE SOLDA P/ CAMISA - CHAPISCO',
+  '521545': 'CELULA DE SOLDA P/ CAMISA - PICOTE',
+  '521560': 'FRESADORA VERTICAL DROPP HEINN UMG',
+  '521561': 'TORNO HORIZONTAL NILES DXP 6.3 X 8',
+  '521571': 'CELULA DE SOLDA P/ CAMISA - BASE / SOBRE',
+  '521572': 'CELULA DE SOLDA P/ CAMISA - LATERAL',
+  '521609': 'TORNO KRAMAT',
+  '521610': 'FRESADORA HEYLIGENTASDE',
+  '521611': 'TORNO H. KRAMATORSKY',
+  '521613': 'FURADEIRA RADIAL',
+  '521670': 'FRESADORA TIPO PORTAL OKADA'
+};
+
+// ---------- Centro de Trabalho: sugestões + validação ----------
+(function montarListaCentros(){
+  const dl = document.getElementById('lista-centros');
+  dl.innerHTML = Object.keys(CENTROS).sort().map(cod =>
+    '<option value="' + cod + '" label="' + CENTROS[cod] + '"></option>').join('');
+})();
+document.getElementById('f-centro').addEventListener('input', function(){
+  const info = document.getElementById('centro-info');
+  const cod = this.value.trim();
+  if(!cod){ info.style.display = 'none'; return; }
+  info.style.display = 'block';
+  if(CENTROS[cod]){
+    info.style.color = 'var(--green)';
+    info.textContent = '✓ ' + CENTROS[cod];
+  } else {
+    info.style.color = 'var(--amber)';
+    info.textContent = 'Código não encontrado — escolha uma opção da lista';
+  }
+});
 
 // ---------- utilidades ----------
 function mostrarTela(id){
@@ -870,6 +944,7 @@ function irParaNovo(){
   document.getElementById('pj-descricao-erro').style.display = 'none';
   atualizarCamposPj1301(false);
   document.getElementById('erro-novo').textContent = '';
+  document.getElementById('centro-info').style.display = 'none';
   document.getElementById('btn-voltar-lista').style.display = apontamentosAtivos.length > 0 ? 'block' : 'none';
   mostrarTela('tela-novo');
 }
@@ -888,6 +963,10 @@ function tentarIniciarApontamento(){
 
   if(!ordem || !op || !centro){
     erroEl.textContent = 'Preencha Ordem, Operação e Centro de Trabalho';
+    return;
+  }
+  if(!CENTROS[centro]){
+    erroEl.textContent = 'Centro de Trabalho inválido — escolha um código da lista';
     return;
   }
   if(!pjTipoSelecionado || !pjNumero){
@@ -1153,7 +1232,7 @@ function renderizarRelatorio(){
       <div class="linha"><span>Apontamentos</span><span>${ultimoRelatorio.length}</span></div>
       <div class="linha"><span>Duração total</span><span>${h}h ${m}min</span></div>
       <div class="linha"><span>Quantidade total</span><span>${String(totalQtd).replace('.', ',')}</span></div>
-      <div class="linha"><span>Valor total${temManual ? ' (exceto AE-1301)' : ''}</span><span>${formatarValor(totalValor)}</span></div>
+      <div class="linha"><span>Valor total${temManual ? ' (exceto AE-1301 manual)' : ''}</span><span>${formatarValor(totalValor)}</span></div>
     </div>
   `;
 
