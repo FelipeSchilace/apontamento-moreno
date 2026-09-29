@@ -75,7 +75,7 @@
   #login-erro{color:var(--red);font-family:var(--font-mono);font-size:12px;min-height:16px;}
 
   /* ---------- TABS ---------- */
-  .tabs{display:flex;gap:4px;padding:14px 28px 0;border-bottom:1px solid var(--border);}
+  .tabs{display:flex;gap:4px;padding:14px 28px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
   .tab-btn{
     background:none;border:none;color:var(--text-dim);font-family:var(--font-body);font-weight:600;
     font-size:14px;padding:12px 18px;border-bottom:2px solid transparent;
@@ -90,12 +90,21 @@
     background:var(--bg-panel);border:1px solid var(--border);color:var(--text);
     font-family:var(--font-body);font-size:13px;padding:10px 14px;border-radius:8px;outline:none;
   }
+  .filtros input[type=text], .filtros input[type=date]{
+    background:var(--bg-panel);border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-body);font-size:13px;padding:10px 14px;border-radius:8px;outline:none;
+  }
   .btn-atualizar{
     background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
     font-family:var(--font-mono);font-size:11px;letter-spacing:1px;padding:10px 16px;border-radius:8px;
     margin-left:auto;
   }
   .contagem{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:1px;}
+
+  /* ---------- TABELAS DE DADOS ---------- */
+  .tab-dados{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;}
+  .tab-dados th{padding:8px;text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap;}
+  .tab-dados td{padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;}
 
   /* ---------- GRUPOS POR TIPO ---------- */
   .grupo-tipo{margin-bottom:32px;}
@@ -281,6 +290,7 @@
         <button class="tab-btn" id="tab-mapa" onclick="mudarAba('mapa')">MAPA DA FÁBRICA</button>
         <button class="tab-btn" id="tab-aprovacoes" onclick="mudarAba('aprovacoes')" style="display:none;">APROVAÇÕES</button>
         <button class="tab-btn" id="tab-consolidado" onclick="mudarAba('consolidado')" style="display:none;">CONSOLIDADO</button>
+        <button class="tab-btn" id="tab-historico" onclick="mudarAba('historico')" style="display:none;">HISTÓRICO</button>
       </div>
 
       <div class="conteudo">
@@ -351,6 +361,21 @@
           <div id="lista-consolidado"></div>
         </div>
 
+        <!-- ABA HISTÓRICO -->
+        <div id="aba-historico" style="display:none;">
+          <div class="filtros">
+            <input type="date" id="h-de" title="De">
+            <input type="date" id="h-ate" title="Até">
+            <input type="text" id="h-operador" placeholder="Operador ou crachá">
+            <input type="text" id="h-centro" placeholder="Centro (código)">
+            <input type="text" id="h-ordem" placeholder="Ordem">
+            <button class="btn-atualizar" style="margin-left:0;" onclick="carregarHistorico()">BUSCAR</button>
+            <button class="btn-atualizar" onclick="baixarHistoricoExcel()">⬇ EXCEL</button>
+            <span class="contagem" id="contagem-historico"></span>
+          </div>
+          <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-historico"></table></div>
+        </div>
+
       </div>
     </section>
 
@@ -374,7 +399,20 @@
   </div>
 </div>
 
-<!-- MODAL RELATÓRIO DO OPERADOR (consolidado) -->
+<!-- MODAL ESCOLHA (consolidado -> operador) -->
+<div class="overlay" id="overlay-escolha-op">
+  <div class="modal">
+    <h3 id="escolha-nome">OPERADOR</h3>
+    <p>O que você quer ver?</p>
+    <div class="modal-acoes" style="flex-direction:column;">
+      <button class="btn-confirmar" onclick="escolherPlanilha()">PLANILHA DE PAGAMENTO</button>
+      <button class="btn-confirmar" style="background:var(--bg-elev);border:1px solid var(--amber-dim);color:var(--amber);" onclick="escolherDetalhado()">RELATÓRIO DETALHADO</button>
+      <button class="btn-cancelar" onclick="fecharEscolhaOp()">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PLANILHA DE PAGAMENTO DO OPERADOR -->
 <div class="overlay" id="overlay-rel-operador">
   <div class="modal" style="max-width:900px;max-height:90vh;overflow:auto;">
     <h3 id="rel-op-titulo">RELATÓRIO</h3>
@@ -396,6 +434,19 @@
     <div class="modal-acoes" style="margin-top:18px;">
       <button class="btn-cancelar" onclick="document.getElementById('overlay-rel-operador').classList.remove('active')">FECHAR</button>
       <button class="btn-confirmar" onclick="baixarRelatorioOperadorExcel()">⬇ EXCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO DETALHADO DO OPERADOR -->
+<div class="overlay" id="overlay-rel-detalhado">
+  <div class="modal" style="max-width:1200px;max-height:90vh;overflow:auto;">
+    <h3 id="det-titulo">RELATÓRIO</h3>
+    <p id="det-sub"></p>
+    <div style="overflow-x:auto;"><table class="tab-dados" id="det-tabela"></table></div>
+    <div class="modal-acoes" style="margin-top:18px;">
+      <button class="btn-cancelar" onclick="document.getElementById('overlay-rel-detalhado').classList.remove('active')">FECHAR</button>
+      <button class="btn-confirmar" onclick="baixarExcelGenerico(detLinhas,'DETALHADO','detalhado_'+detNome.replace(/\s+/g,'_'))">⬇ EXCEL</button>
     </div>
   </div>
 </div>
@@ -572,8 +623,10 @@ async function entrarAdmin(){
     document.getElementById('header-admin').style.display = 'flex';
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('tela-painel').classList.add('active');
-    document.getElementById('tab-aprovacoes').style.display = admin.setor ? 'inline-block' : 'none';
-    document.getElementById('tab-consolidado').style.display = admin.setor ? 'inline-block' : 'none';
+    const mostrar = admin.setor ? 'inline-block' : 'none';
+    document.getElementById('tab-aprovacoes').style.display = mostrar;
+    document.getElementById('tab-consolidado').style.display = mostrar;
+    document.getElementById('tab-historico').style.display = mostrar;
     todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
     popularFiltroOperadores();
     renderizarOperacoes();
@@ -594,28 +647,27 @@ function sair(){
   document.getElementById('header-admin').style.display = 'none';
   document.getElementById('tab-aprovacoes').style.display = 'none';
   document.getElementById('tab-consolidado').style.display = 'none';
+  document.getElementById('tab-historico').style.display = 'none';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tela-login').classList.add('active');
 }
 
 // ---------- abas ----------
 function mudarAba(nome){
-  document.getElementById('tab-operacoes').classList.toggle('active', nome==='operacoes');
-  document.getElementById('tab-operadores').classList.toggle('active', nome==='operadores');
-  document.getElementById('tab-mapa').classList.toggle('active', nome==='mapa');
-  document.getElementById('tab-aprovacoes').classList.toggle('active', nome==='aprovacoes');
-  document.getElementById('tab-consolidado').classList.toggle('active', nome==='consolidado');
-  document.getElementById('aba-operacoes').style.display = nome==='operacoes' ? 'block' : 'none';
-  document.getElementById('aba-operadores').style.display = nome==='operadores' ? 'block' : 'none';
-  document.getElementById('aba-mapa').style.display = nome==='mapa' ? 'block' : 'none';
-  document.getElementById('aba-aprovacoes').style.display = nome==='aprovacoes' ? 'block' : 'none';
-  document.getElementById('aba-consolidado').style.display = nome==='consolidado' ? 'block' : 'none';
+  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico'].forEach(n => {
+    document.getElementById('tab-' + n).classList.toggle('active', nome === n);
+    document.getElementById('aba-' + n).style.display = nome === n ? 'block' : 'none';
+  });
   if(nome==='operadores') renderizarOperadores();
   if(nome==='mapa') renderizarMapa();
   if(nome==='aprovacoes') mudarSubAbaAprov('pendentes');
   if(nome==='consolidado' && !document.getElementById('f-mes-consolidado').value){
     const hoje = new Date();
     document.getElementById('f-mes-consolidado').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  }
+  if(nome==='historico' && !document.getElementById('h-de').value){
+    const hoje = new Date();
+    document.getElementById('h-de').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
   }
 }
 
@@ -1035,8 +1087,8 @@ async function carregarConsolidado(){
           <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;">Total geral do mês</span>
           <span style="font-family:var(--font-mono);font-weight:700;color:var(--amber);">R$ ${totalGeral.toFixed(2).replace('.',',')}</span>
         </div>
-      ` + ultimoConsolidado.map(o => `
-        <div class="card-operador" style="margin-bottom:10px;cursor:pointer;" onclick="abrirRelatorioOperador('${escaparHtml(o.cracha)}','${escaparHtml(o.nome)}')">
+      ` + ultimoConsolidado.map((o,i) => `
+        <div class="card-operador" style="margin-bottom:10px;cursor:pointer;" onclick="abrirEscolhaOperador(${i})">
           <div>
             <div class="nome">${escaparHtml(o.nome)}${o.temManual ? ' <span style="font-family:var(--font-mono);font-size:10px;color:var(--amber);">(tem AE-1301 manual)</span>' : ''}</div>
             <div class="detalhe">${o.apontamentos} apontamento(s) · qtd. total ${String(o.quantidadeTotal).replace('.',',')}</div>
@@ -1068,7 +1120,42 @@ function baixarConsolidadoExcel(){
   XLSX.writeFile(wb, 'consolidado_' + mesValor + '.xlsx');
 }
 
-// ---------- CONSOLIDADO: relatório de um operador ----------
+// ---------- CONSOLIDADO: escolha ao clicar no operador ----------
+let opSel = null;
+function abrirEscolhaOperador(i){
+  const o = ultimoConsolidado[i];
+  if(!o) return;
+  opSel = { cracha:o.cracha, nome:o.nome };
+  document.getElementById('escolha-nome').textContent = o.nome.toUpperCase();
+  document.getElementById('overlay-escolha-op').classList.add('active');
+}
+function fecharEscolhaOp(){ document.getElementById('overlay-escolha-op').classList.remove('active'); }
+function escolherPlanilha(){ fecharEscolhaOp(); abrirRelatorioOperador(opSel.cracha, opSel.nome); }
+function escolherDetalhado(){ fecharEscolhaOp(); abrirRelatorioDetalhado(opSel.cracha, opSel.nome); }
+
+// ---------- helpers de tabela / formatação ----------
+function fmtData(v){ if(!v) return '—'; const d=new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('pt-BR'); }
+function fmtValor(v){ return (v==null || isNaN(Number(v))) ? '—' : 'R$ ' + Number(v).toFixed(2).replace('.',','); }
+function porDiaTexto(p){
+  if(!p || Object.keys(p).length < 2) return '';
+  return Object.keys(p).sort().map(k => { const s=k.split('-'); return s[2]+'/'+s[1]+': '+formatarDuracao(p[k]); }).join(' · ');
+}
+function renderTabela(idTabela, linhas){
+  const t = document.getElementById(idTabela);
+  if(!linhas.length){ t.innerHTML = '<tbody><tr><td style="color:var(--text-dim);">NADA ENCONTRADO</td></tr></tbody>'; return; }
+  const cols = Object.keys(linhas[0]);
+  t.innerHTML = '<thead><tr>' + cols.map(c => '<th>' + escaparHtml(c) + '</th>').join('') + '</tr></thead><tbody>' +
+    linhas.map(l => '<tr>' + cols.map(c => '<td>' + escaparHtml(l[c]) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+}
+function baixarExcelGenerico(linhas, aba, arquivo){
+  if(!linhas || linhas.length === 0){ alert('Sem dados pra exportar.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Biblioteca de Excel ainda carregando, tente de novo.'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), aba);
+  XLSX.writeFile(wb, arquivo + '.xlsx');
+}
+
+// ---------- CONSOLIDADO: planilha de pagamento de um operador ----------
 let relOperadorLinhas = [];
 let relOperadorNome = '';
 async function abrirRelatorioOperador(cracha, nome){
@@ -1114,6 +1201,67 @@ function baixarRelatorioOperadorExcel(){
   XLSX.utils.book_append_sheet(wb, ws, 'RELATORIO');
   XLSX.writeFile(wb, 'relatorio_' + relOperadorNome.replace(/\s+/g,'_') + '_' + document.getElementById('f-mes-consolidado').value + '.xlsx');
 }
+
+// ---------- CONSOLIDADO: relatório detalhado de um operador ----------
+let detLinhas = [];
+let detNome = '';
+async function abrirRelatorioDetalhado(cracha, nome){
+  const valor = document.getElementById('f-mes-consolidado').value;
+  if(!valor) return;
+  const [anoStr, mesStr] = valor.split('-');
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'relatorioOperador', cracha, ano:Number(anoStr), mes:Number(mesStr) });
+    if(!r.ok) throw new Error(r.erro);
+    detNome = nome;
+    detLinhas = (r.registros || []).map(x => ({
+      'Data': fmtData(x.data), 'Ordem': x.ordem, 'OP': x.op, 'PJ': x.pj, 'Centro': x.centro,
+      'Categoria': x.categoria || '', 'Descrição': x.observacao || '',
+      'Início': formatarHora(x.horaInicio), 'Fim': formatarHora(x.horaFim),
+      'Duração': formatarDuracao(x.duracaoMin), 'Tempo por dia': porDiaTexto(x.porDia),
+      'Qtd': String(x.quantidade || 0).replace('.',','),
+      'Valor': x.valorManual ? 'Manual (AE-1301)' : fmtValor(x.valorTotal),
+      'Aprovação': x.aprovacao || '', 'Status': x.status
+    }));
+    document.getElementById('det-titulo').textContent = nome.toUpperCase();
+    document.getElementById('det-sub').textContent = 'RELATÓRIO DETALHADO DE ' + valor + ' — ' + detLinhas.length + ' APONTAMENTO(S)';
+    renderTabela('det-tabela', detLinhas);
+    document.getElementById('overlay-rel-detalhado').classList.add('active');
+  }catch(err){
+    alert('Erro ao carregar o relatório detalhado.');
+  }
+  loading(false);
+}
+
+// ---------- HISTÓRICO ----------
+let historicoLinhas = [];
+async function carregarHistorico(){
+  const g = id => document.getElementById(id).value.trim();
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', {
+      action:'historicoApontamentos', setor: (admin && admin.setor) || 'Todos',
+      dataDe: g('h-de'), dataAte: g('h-ate'), operador: g('h-operador'), centro: g('h-centro'), ordem: g('h-ordem')
+    });
+    if(!r.ok) throw new Error(r.erro);
+    historicoLinhas = (r.registros || []).map(x => ({
+      'Data': fmtData(x.data), 'Operador': x.nome, 'Ordem': x.ordem, 'OP': x.op, 'PJ': x.pj,
+      'Centro': x.centro + (nomeDoCentro(x.centro) ? ' — ' + nomeDoCentro(x.centro) : ''),
+      'Categoria': x.categoria || '', 'Descrição': x.observacao || '',
+      'Início': formatarHora(x.horaInicio), 'Fim': formatarHora(x.horaFim),
+      'Duração': formatarDuracao(x.duracaoMin), 'Pausa': formatarDuracao(x.pausaMin),
+      'Qtd': String(x.quantidade || 0).replace('.',','),
+      'Aprovação': x.aprovacao || '', 'Status': x.status
+    }));
+    document.getElementById('contagem-historico').textContent =
+      historicoLinhas.length + ' registro(s)' + (r.truncado ? ' — mostrando os 1000 mais recentes, refine os filtros' : '');
+    renderTabela('tabela-historico', historicoLinhas);
+  }catch(err){
+    alert('Erro ao buscar o histórico.');
+  }
+  loading(false);
+}
+function baixarHistoricoExcel(){ baixarExcelGenerico(historicoLinhas, 'HISTORICO', 'historico_apontamentos'); }
 </script>
 </body>
 </html>
