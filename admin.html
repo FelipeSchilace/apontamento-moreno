@@ -154,6 +154,22 @@
     flex:1;background:var(--red);border:none;color:#fff;font-family:var(--font-body);
     font-weight:700;font-size:12px;padding:10px;border-radius:8px;
   }
+  .btn-editar{
+    flex:1;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-body);font-weight:700;font-size:12px;padding:10px;border-radius:8px;
+  }
+  .campo-edicao{margin-bottom:12px;text-align:left;}
+  .campo-edicao label{
+    display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--text-dim);margin-bottom:5px;
+  }
+  .campo-edicao input, .campo-edicao select, .campo-edicao textarea{
+    width:100%;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-body);font-size:14px;padding:10px 12px;border-radius:8px;outline:none;
+  }
+  .campo-edicao input:focus, .campo-edicao select:focus, .campo-edicao textarea:focus{border-color:var(--amber);}
+  .campo-edicao textarea{resize:none;min-height:60px;}
+  #editar-erro{color:var(--red);font-family:var(--font-mono);font-size:11px;min-height:14px;margin-bottom:10px;}
 
   .vazio-geral{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -395,6 +411,57 @@
     <div class="modal-acoes">
       <button class="btn-cancelar" onclick="fecharModalEncerrar()">CANCELAR</button>
       <button class="btn-confirmar" onclick="confirmarEncerrar()">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR APONTAMENTO ATIVO -->
+<div class="overlay" id="overlay-editar">
+  <div class="modal" style="max-width:420px;max-height:92vh;overflow:auto;">
+    <h3>Editar apontamento</h3>
+    <p id="editar-sub"></p>
+    <div class="campo-edicao">
+      <label>Ordem</label>
+      <input type="text" id="e-ordem" inputmode="numeric">
+    </div>
+    <div class="campo-edicao">
+      <label>Operação (OP)</label>
+      <input type="text" id="e-op" inputmode="numeric">
+    </div>
+    <div class="campo-edicao">
+      <label>PJ</label>
+      <div style="display:flex;gap:8px;">
+        <select id="e-pj-tipo" style="width:90px;" onchange="atualizarCamposEditar1301()">
+          <option value="AE">AE</option>
+          <option value="VI">VI</option>
+        </select>
+        <input type="text" id="e-pj-numero" inputmode="numeric" oninput="atualizarCamposEditar1301()">
+      </div>
+    </div>
+    <div class="campo-edicao">
+      <label>Centro de Trabalho</label>
+      <input type="text" id="e-centro" list="lista-centros-edicao" autocomplete="off">
+      <datalist id="lista-centros-edicao"></datalist>
+    </div>
+    <div class="campo-edicao" id="e-campo-categoria" style="display:none;">
+      <label>Categoria (obrigatória no AE-1301)</label>
+      <select id="e-categoria">
+        <option value="">Selecione...</option>
+        <option value="RNC">RNC</option>
+        <option value="Manutenção">Manutenção</option>
+        <option value="Reforma">Reforma</option>
+        <option value="Serviço não previsto">Serviço não previsto</option>
+        <option value="Horas Excedidas">Horas Excedidas</option>
+      </select>
+    </div>
+    <div class="campo-edicao">
+      <label id="e-label-obs">Descrição</label>
+      <textarea id="e-obs"></textarea>
+    </div>
+    <div id="editar-erro"></div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalEditar()">CANCELAR</button>
+      <button class="btn-confirmar" onclick="salvarEdicao()">SALVAR</button>
     </div>
   </div>
 </div>
@@ -749,6 +816,7 @@ function cardOperacao(a){
       <div class="aviso-excedido" id="excedido-${a.id}" style="display:none;">⚠ Essa ordem excedeu o tempo previsto</div>
       <div class="acoes-card">
         <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
+        <button class="btn-editar" onclick="abrirModalEditar('${a.id}')">EDITAR</button>
         <button class="btn-encerrar" onclick="abrirModalEncerrar('${a.id}','${escaparHtml(a.nome)}','${escaparHtml(a.ordem)}')">ENCERRAR</button>
       </div>
     </div>
@@ -931,6 +999,85 @@ async function confirmarEncerrar(){
     if(document.getElementById('aba-mapa').style.display !== 'none') renderizarMapa();
   }catch(err){
     alert('Erro ao encerrar. Tente novamente.');
+  }
+  loading(false);
+}
+
+// ---------- editar apontamento ativo ----------
+let editarIdAtual = null;
+(function montarListaCentrosEdicao(){
+  document.getElementById('lista-centros-edicao').innerHTML = Object.keys(CENTROS).sort().map(cod =>
+    '<option value="' + cod + '" label="' + CENTROS[cod][0] + '"></option>').join('');
+})();
+function abrirModalEditar(id){
+  const a = todosAtivos.find(x => x.id === id);
+  if(!a) return;
+  editarIdAtual = id;
+  const pj = String(a.pj || '');
+  const idx = pj.indexOf('-');
+  document.getElementById('editar-sub').textContent = a.nome + ' — corrija os dados do serviço em andamento.';
+  document.getElementById('e-ordem').value = a.ordem || '';
+  document.getElementById('e-op').value = a.op || '';
+  document.getElementById('e-pj-tipo').value = idx > -1 ? pj.substring(0, idx).toUpperCase() : 'AE';
+  document.getElementById('e-pj-numero').value = idx > -1 ? pj.substring(idx + 1) : pj;
+  document.getElementById('e-centro').value = String(a.centro || '').trim();
+  document.getElementById('e-categoria').value = a.categoria || '';
+  document.getElementById('e-obs').value = a.observacao || '';
+  document.getElementById('editar-erro').textContent = '';
+  atualizarCamposEditar1301();
+  document.getElementById('overlay-editar').classList.add('active');
+}
+function fecharModalEditar(){
+  document.getElementById('overlay-editar').classList.remove('active');
+  editarIdAtual = null;
+}
+function editandoPj1301(){
+  return document.getElementById('e-pj-tipo').value === 'AE' &&
+         document.getElementById('e-pj-numero').value.trim() === '1301';
+}
+function atualizarCamposEditar1301(){
+  const eh1301 = editandoPj1301();
+  document.getElementById('e-campo-categoria').style.display = eh1301 ? 'block' : 'none';
+  document.getElementById('e-label-obs').textContent = eh1301 ? 'Descrição do serviço (obrigatória no AE-1301)' : 'Descrição';
+}
+async function salvarEdicao(){
+  if(!editarIdAtual) return;
+  const erroEl = document.getElementById('editar-erro');
+  erroEl.textContent = '';
+  const ordem = document.getElementById('e-ordem').value.trim();
+  const op = document.getElementById('e-op').value.trim();
+  const pjTipo = document.getElementById('e-pj-tipo').value;
+  const pjNumero = document.getElementById('e-pj-numero').value.trim();
+  const centro = document.getElementById('e-centro').value.trim();
+  const eh1301 = editandoPj1301();
+  const categoria = eh1301 ? document.getElementById('e-categoria').value : '';
+  const observacao = document.getElementById('e-obs').value.trim();
+
+  if(!ordem || !op || !pjNumero || !centro){ erroEl.textContent = 'Preencha Ordem, Operação, PJ e Centro'; return; }
+  if(!CENTROS[centro]){ erroEl.textContent = 'Centro de Trabalho inválido — use um código da lista'; return; }
+  if(eh1301 && !categoria){ erroEl.textContent = 'Selecione a categoria (obrigatória no AE-1301)'; return; }
+  if(eh1301 && !observacao){ erroEl.textContent = 'A descrição é obrigatória no AE-1301'; return; }
+
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', {
+      action:'editarApontamento', id: editarIdAtual,
+      ordem, op, pjTipo, pjNumero, centro, categoria, observacao
+    });
+    if(!r.ok){ erroEl.textContent = r.erro || 'Não foi possível salvar.'; loading(false); return; }
+    const a = todosAtivos.find(x => x.id === editarIdAtual);
+    if(a){
+      a.ordem = ordem; a.op = op; a.pj = pjTipo + '-' + pjNumero; a.centro = centro;
+      a.categoria = categoria; a.observacao = r.observacao != null ? r.observacao : observacao;
+      a.tempoPrevistoHoras = (r.tempoPrevistoHoras !== undefined) ? r.tempoPrevistoHoras : a.tempoPrevistoHoras;
+    }
+    fecharModalEditar();
+    popularFiltroOperadores();
+    renderizarOperacoes();
+    if(document.getElementById('aba-operadores').style.display !== 'none') renderizarOperadores();
+    if(document.getElementById('aba-mapa').style.display !== 'none') renderizarMapa();
+  }catch(err){
+    erroEl.textContent = 'Erro de conexão. Tente novamente.';
   }
   loading(false);
 }
