@@ -698,6 +698,7 @@ async function entrarAdmin(){
     popularFiltroOperadores();
     renderizarOperacoes();
     timerInterval = setInterval(atualizarCronometros, 1000);
+    syncAdminInterval = setInterval(sincronizarAtivosSilencioso, 30000);
   }catch(err){
     erroEl.textContent = 'Erro de conexão. Tente novamente.';
   }
@@ -708,6 +709,7 @@ function sair(){
   todosAtivos = [];
   pendentesAprovacao = [];
   clearInterval(timerInterval);
+  clearInterval(syncAdminInterval);
   document.getElementById('f-usuario').value = '';
   document.getElementById('f-senha').value = '';
   document.getElementById('login-erro').textContent = '';
@@ -760,6 +762,21 @@ function popularFiltroOperadores(){
   select.innerHTML = '<option value="">Todos os operadores</option>' +
     nomes.map(n => `<option value="${escaparHtml(n)}">${escaparHtml(n)}</option>`).join('');
   select.value = atual;
+}
+
+// ---------- atualização automática (a cada 30s, sem tela de loading) ----------
+let syncAdminInterval = null;
+async function sincronizarAtivosSilencioso(){
+  if(!admin) return;
+  try{
+    const r = await chamarAPI('action=ativosTodos');
+    if(!r.ok || !Array.isArray(r.dados)) return;
+    todosAtivos = r.dados;
+    popularFiltroOperadores();
+    if(document.getElementById('aba-operacoes').style.display !== 'none') renderizarOperacoes();
+    if(document.getElementById('aba-operadores').style.display !== 'none') renderizarOperadores();
+    if(document.getElementById('aba-mapa').style.display !== 'none') renderizarMapa();
+  }catch(err){}
 }
 
 // ---------- render operações agrupadas por tipo ----------
