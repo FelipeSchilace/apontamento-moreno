@@ -307,6 +307,7 @@
         <button class="tab-btn" id="tab-aprovacoes" onclick="mudarAba('aprovacoes')" style="display:none;">APROVAÇÕES</button>
         <button class="tab-btn" id="tab-consolidado" onclick="mudarAba('consolidado')" style="display:none;">CONSOLIDADO</button>
         <button class="tab-btn" id="tab-historico" onclick="mudarAba('historico')" style="display:none;">HISTÓRICO</button>
+        <button class="tab-btn" id="tab-previsto" onclick="mudarAba('previsto')" style="display:none;">PREVISTO × REAL</button>
       </div>
 
       <div class="conteudo">
@@ -390,6 +391,23 @@
             <span class="contagem" id="contagem-historico"></span>
           </div>
           <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-historico"></table></div>
+        </div>
+
+        <!-- ABA PREVISTO × REAL -->
+        <div id="aba-previsto" style="display:none;">
+          <div class="filtros">
+            <input type="date" id="p-de" title="De">
+            <input type="date" id="p-ate" title="Até">
+            <button class="btn-atualizar" style="margin-left:0;" onclick="carregarPrevistoReal()">GERAR</button>
+            <button class="btn-atualizar" onclick="baixarPrevistoExcel()">⬇ EXCEL</button>
+            <span class="contagem" id="contagem-previsto"></span>
+          </div>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Compara o tempo previsto de cada PJ com o tempo real dos apontamentos concluídos no período.
+            <span style="color:#ff8a80;">Vermelho</span>: metade ou mais dos apontamentos estourou o previsto ·
+            <span style="color:var(--amber);">Âmbar</span>: 25% ou mais. O "previsto sugerido" é a mediana dos tempos reais (precisa de 3 apontamentos ou mais).
+          </p>
+          <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-previsto"></table></div>
         </div>
 
       </div>
@@ -694,6 +712,7 @@ async function entrarAdmin(){
     document.getElementById('tab-aprovacoes').style.display = mostrar;
     document.getElementById('tab-consolidado').style.display = mostrar;
     document.getElementById('tab-historico').style.display = mostrar;
+    document.getElementById('tab-previsto').style.display = mostrar;
     todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
     popularFiltroOperadores();
     renderizarOperacoes();
@@ -717,13 +736,14 @@ function sair(){
   document.getElementById('tab-aprovacoes').style.display = 'none';
   document.getElementById('tab-consolidado').style.display = 'none';
   document.getElementById('tab-historico').style.display = 'none';
+  document.getElementById('tab-previsto').style.display = 'none';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tela-login').classList.add('active');
 }
 
 // ---------- abas ----------
 function mudarAba(nome){
-  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico'].forEach(n => {
+  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico','previsto'].forEach(n => {
     document.getElementById('tab-' + n).classList.toggle('active', nome === n);
     document.getElementById('aba-' + n).style.display = nome === n ? 'block' : 'none';
   });
@@ -737,6 +757,10 @@ function mudarAba(nome){
   if(nome==='historico' && !document.getElementById('h-de').value){
     const hoje = new Date();
     document.getElementById('h-de').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
+  }
+  if(nome==='previsto' && !document.getElementById('p-de').value){
+    const hoje = new Date();
+    document.getElementById('p-de').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
   }
 }
 
@@ -1426,6 +1450,53 @@ async function carregarHistorico(){
   loading(false);
 }
 function baixarHistoricoExcel(){ baixarExcelGenerico(historicoLinhas, 'HISTORICO', 'historico_apontamentos'); }
+
+// ---------- PREVISTO × REALIZADO POR PJ ----------
+let previstoLinhas = [];
+function horasParaTexto(h){ return formatarDuracao(Math.round(h * 60)); }
+async function carregarPrevistoReal(){
+  const g = id => document.getElementById(id).value.trim();
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', {
+      action:'relatorioPrevistoRealizado', setor: (admin && admin.setor) || 'Todos',
+      dataDe: g('p-de'), dataAte: g('p-ate')
+    });
+    if(!r.ok) throw new Error(r.erro);
+    renderPrevistoReal(r.pjs || []);
+  }catch(err){
+    alert('Erro ao gerar o relatório de previsto × real.');
+  }
+  loading(false);
+}
+function renderPrevistoReal(lista){
+  previstoLinhas = lista.map(p => ({
+    'PJ': p.pj,
+    'Descrição': p.descricao || '',
+    'Previsto': p.previstoHoras != null ? horasParaTexto(p.previstoHoras) : 'não definido',
+    'Apontamentos': p.apontamentos,
+    'Média real': formatarDuracao(p.mediaMin),
+    'Mediana': formatarDuracao(p.medianaMin),
+    'Maior tempo': formatarDuracao(p.maxMin),
+    'Estouraram': p.pctEstouro != null ? (p.estouraram + ' (' + String(p.pctEstouro).replace('.', ',') + '%)') : '—',
+    'Horas excedidas geradas': p.excedidoMin > 0 ? formatarDuracao(p.excedidoMin) : '—',
+    'Previsto sugerido': p.sugeridoHoras != null ? horasParaTexto(p.sugeridoHoras) : '—'
+  }));
+  document.getElementById('contagem-previsto').textContent = lista.length + ' PJ(s)';
+  const t = document.getElementById('tabela-previsto');
+  if(!lista.length){
+    t.innerHTML = '<tbody><tr><td style="color:var(--text-dim);">NENHUM APONTAMENTO CONCLUÍDO NO PERÍODO</td></tr></tbody>';
+    return;
+  }
+  const cols = Object.keys(previstoLinhas[0]);
+  t.innerHTML = '<thead><tr>' + cols.map(c => '<th>' + escaparHtml(c) + '</th>').join('') + '</tr></thead><tbody>' +
+    previstoLinhas.map((l, i) => {
+      const pct = lista[i].pctEstouro;
+      const cor = pct == null ? '' : (pct >= 50 ? 'color:#ff8a80;' : (pct >= 25 ? 'color:var(--amber);' : ''));
+      return '<tr style="' + cor + '">' + cols.map(c => '<td>' + escaparHtml(l[c]) + '</td>').join('') + '</tr>';
+    }).join('') + '</tbody>';
+}
+function baixarPrevistoExcel(){ baixarExcelGenerico(previstoLinhas, 'PREVISTO_REAL', 'previsto_x_realizado'); }
 </script>
 </body>
 </html>
