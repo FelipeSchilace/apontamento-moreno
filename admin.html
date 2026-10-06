@@ -393,19 +393,24 @@
           <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-historico"></table></div>
         </div>
 
-        <!-- ABA PREVISTO × REAL -->
+        <!-- ABA PREVISTO × REAL (por ordem) -->
         <div id="aba-previsto" style="display:none;">
           <div class="filtros">
             <input type="date" id="p-de" title="De">
             <input type="date" id="p-ate" title="Até">
+            <input type="text" id="p-ordem" placeholder="Ordem (opcional)">
             <button class="btn-atualizar" style="margin-left:0;" onclick="carregarPrevistoReal()">GERAR</button>
+            <button class="btn-atualizar" onclick="expandirTudoPrevisto(true)">▼ ABRIR TODAS</button>
+            <button class="btn-atualizar" onclick="expandirTudoPrevisto(false)">▶ FECHAR TODAS</button>
             <button class="btn-atualizar" onclick="baixarPrevistoExcel()">⬇ EXCEL</button>
             <span class="contagem" id="contagem-previsto"></span>
           </div>
           <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-            Compara o tempo previsto de cada PJ com o tempo real dos apontamentos concluídos no período.
-            <span style="color:#ff8a80;">Vermelho</span>: metade ou mais dos apontamentos estourou o previsto ·
-            <span style="color:var(--amber);">Âmbar</span>: 25% ou mais. O "previsto sugerido" é a mediana dos tempos reais (precisa de 3 apontamentos ou mais).
+            Cada linha é uma ordem. Clique na seta (▶) para ver os PJs apontados nela, com o tempo previsto × realizado de cada um.
+            <b>Total real</b> = realizado + horas excedidas geradas. <b>Diferença</b> = total real − previsto (só PJs com previsto definido e já concluídos).
+            <span style="color:#ff8a80;">Vermelho</span>: passou do previsto ·
+            <span style="color:var(--amber);">Âmbar</span>: já usou 90% ou mais do previsto.
+            Considera apenas apontamentos concluídos, iniciados no período.
           </p>
           <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-previsto"></table></div>
         </div>
@@ -1451,52 +1456,120 @@ async function carregarHistorico(){
 }
 function baixarHistoricoExcel(){ baixarExcelGenerico(historicoLinhas, 'HISTORICO', 'historico_apontamentos'); }
 
-// ---------- PREVISTO × REALIZADO POR PJ ----------
-let previstoLinhas = [];
-function horasParaTexto(h){ return formatarDuracao(Math.round(h * 60)); }
+// ---------- PREVISTO × REALIZADO POR ORDEM ----------
+let previstoOrdens = [];
+function minTexto(m){ return (m === null || m === undefined) ? '—' : formatarDuracao(m); }
+function textoDiferenca(min){
+  if(min === null || min === undefined) return '—';
+  if(min > 0) return '+' + formatarDuracao(min) + ' acima';
+  if(min < 0) return formatarDuracao(-min) + ' de folga';
+  return 'no previsto';
+}
+function corPrevisto(diff, previstoMin){
+  if(diff === null || diff === undefined || !previstoMin) return '';
+  if(diff > 0) return 'color:#ff8a80;';
+  if(diff + previstoMin >= previstoMin * 0.9) return 'color:var(--amber);';
+  return '';
+}
 async function carregarPrevistoReal(){
   const g = id => document.getElementById(id).value.trim();
   loading(true);
   try{
     const r = await chamarAPI(null, 'POST', {
       action:'relatorioPrevistoRealizado', setor: (admin && admin.setor) || 'Todos',
-      dataDe: g('p-de'), dataAte: g('p-ate')
+      dataDe: g('p-de'), dataAte: g('p-ate'), ordem: g('p-ordem')
     });
     if(!r.ok) throw new Error(r.erro);
-    renderPrevistoReal(r.pjs || []);
+    previstoOrdens = r.ordens || [];
+    renderPrevistoReal();
   }catch(err){
     alert('Erro ao gerar o relatório de previsto × real.');
   }
   loading(false);
 }
-function renderPrevistoReal(lista){
-  previstoLinhas = lista.map(p => ({
-    'PJ': p.pj,
-    'Descrição': p.descricao || '',
-    'Previsto': p.previstoHoras != null ? horasParaTexto(p.previstoHoras) : 'não definido',
-    'Apontamentos': p.apontamentos,
-    'Média real': formatarDuracao(p.mediaMin),
-    'Mediana': formatarDuracao(p.medianaMin),
-    'Maior tempo': formatarDuracao(p.maxMin),
-    'Estouraram': p.pctEstouro != null ? (p.estouraram + ' (' + String(p.pctEstouro).replace('.', ',') + '%)') : '—',
-    'Horas excedidas geradas': p.excedidoMin > 0 ? formatarDuracao(p.excedidoMin) : '—',
-    'Previsto sugerido': p.sugeridoHoras != null ? horasParaTexto(p.sugeridoHoras) : '—'
-  }));
-  document.getElementById('contagem-previsto').textContent = lista.length + ' PJ(s)';
+function renderPrevistoReal(){
+  document.getElementById('contagem-previsto').textContent = previstoOrdens.length + ' ordem(ns)';
   const t = document.getElementById('tabela-previsto');
-  if(!lista.length){
+  if(!previstoOrdens.length){
     t.innerHTML = '<tbody><tr><td style="color:var(--text-dim);">NENHUM APONTAMENTO CONCLUÍDO NO PERÍODO</td></tr></tbody>';
     return;
   }
-  const cols = Object.keys(previstoLinhas[0]);
-  t.innerHTML = '<thead><tr>' + cols.map(c => '<th>' + escaparHtml(c) + '</th>').join('') + '</tr></thead><tbody>' +
-    previstoLinhas.map((l, i) => {
-      const pct = lista[i].pctEstouro;
-      const cor = pct == null ? '' : (pct >= 50 ? 'color:#ff8a80;' : (pct >= 25 ? 'color:var(--amber);' : ''));
-      return '<tr style="' + cor + '">' + cols.map(c => '<td>' + escaparHtml(l[c]) + '</td>').join('') + '</tr>';
-    }).join('') + '</tbody>';
+  const cab = ['', 'Ordem / PJ', 'Detalhe', 'Previsto', 'Realizado', 'Horas excedidas', 'Total real', 'Diferença', 'Apontamentos', 'Operadores'];
+  let html = '<thead><tr>' + cab.map(c => '<th>' + escaparHtml(c) + '</th>').join('') + '</tr></thead><tbody>';
+  previstoOrdens.forEach((o, i) => {
+    const cor = corPrevisto(o.diferencaMin, o.previstoMin);
+    const apont = o.pjs.reduce((s, p) => s + p.apontamentos, 0);
+    let detalhe = o.pjs.length + ' PJ(s)';
+    if(o.pjsSemPrevisto) detalhe += ' · ' + o.pjsSemPrevisto + ' sem previsto';
+    if(o.pjsEmAberto) detalhe += ' · ' + o.pjsEmAberto + ' em aberto';
+    html += '<tr style="cursor:pointer;font-weight:700;background:var(--bg-panel);' + cor + '" onclick="alternarOrdemPrevisto(' + i + ')">' +
+      '<td><span id="seta-prev-' + i + '">▶</span></td>' +
+      '<td>Ordem ' + escaparHtml(o.ordem) + '</td>' +
+      '<td>' + escaparHtml(detalhe) + '</td>' +
+      '<td>' + minTexto(o.previstoMin) + '</td>' +
+      '<td>' + minTexto(o.realizadoMin) + '</td>' +
+      '<td>' + (o.excedidoMin > 0 ? formatarDuracao(o.excedidoMin) : '—') + '</td>' +
+      '<td>' + minTexto(o.totalMin) + '</td>' +
+      '<td>' + escaparHtml(textoDiferenca(o.diferencaMin)) + '</td>' +
+      '<td>' + apont + '</td>' +
+      '<td>' + escaparHtml(o.operadores.join(', ')) + '</td></tr>';
+    o.pjs.forEach(p => {
+      const corPj = corPrevisto(p.diferencaMin, p.previstoMin);
+      let det = p.descricao || '';
+      if(p.emAberto) det = (det ? det + ' · ' : '') + 'PJ original ainda em aberto';
+      html += '<tr class="filho-prev-' + i + '" style="display:none;' + corPj + '">' +
+        '<td></td>' +
+        '<td style="padding-left:26px;">' + escaparHtml(p.pj) + '</td>' +
+        '<td>' + escaparHtml(det) + '</td>' +
+        '<td>' + (p.previstoMin !== null ? formatarDuracao(p.previstoMin) : 'não definido') + '</td>' +
+        '<td>' + minTexto(p.realizadoMin) + '</td>' +
+        '<td>' + (p.excedidoMin > 0 ? formatarDuracao(p.excedidoMin) : '—') + '</td>' +
+        '<td>' + minTexto(p.totalMin) + '</td>' +
+        '<td>' + escaparHtml(textoDiferenca(p.diferencaMin)) + '</td>' +
+        '<td>' + p.apontamentos + '</td>' +
+        '<td>' + escaparHtml(p.operadores.join(', ')) + '</td></tr>';
+    });
+  });
+  t.innerHTML = html + '</tbody>';
 }
-function baixarPrevistoExcel(){ baixarExcelGenerico(previstoLinhas, 'PREVISTO_REAL', 'previsto_x_realizado'); }
+function alternarOrdemPrevisto(i){
+  const filhos = document.querySelectorAll('.filho-prev-' + i);
+  if(!filhos.length) return;
+  const abrir = filhos[0].style.display === 'none';
+  filhos.forEach(tr => { tr.style.display = abrir ? 'table-row' : 'none'; });
+  const seta = document.getElementById('seta-prev-' + i);
+  if(seta) seta.textContent = abrir ? '▼' : '▶';
+}
+function expandirTudoPrevisto(abrir){
+  previstoOrdens.forEach((o, i) => {
+    document.querySelectorAll('.filho-prev-' + i).forEach(tr => { tr.style.display = abrir ? 'table-row' : 'none'; });
+    const seta = document.getElementById('seta-prev-' + i);
+    if(seta) seta.textContent = abrir ? '▼' : '▶';
+  });
+}
+function baixarPrevistoExcel(){
+  const linhas = [];
+  previstoOrdens.forEach(o => {
+    linhas.push({
+      'Ordem': o.ordem, 'PJ': 'TOTAL DA ORDEM', 'Detalhe': o.pjs.length + ' PJ(s)',
+      'Previsto': minTexto(o.previstoMin), 'Realizado': minTexto(o.realizadoMin),
+      'Horas excedidas': o.excedidoMin > 0 ? formatarDuracao(o.excedidoMin) : '—',
+      'Total real': minTexto(o.totalMin), 'Diferença': textoDiferenca(o.diferencaMin),
+      'Apontamentos': o.pjs.reduce((s, p) => s + p.apontamentos, 0), 'Operadores': o.operadores.join(', ')
+    });
+    o.pjs.forEach(p => {
+      linhas.push({
+        'Ordem': o.ordem, 'PJ': p.pj, 'Detalhe': p.descricao || '',
+        'Previsto': p.previstoMin !== null ? formatarDuracao(p.previstoMin) : 'não definido',
+        'Realizado': minTexto(p.realizadoMin),
+        'Horas excedidas': p.excedidoMin > 0 ? formatarDuracao(p.excedidoMin) : '—',
+        'Total real': minTexto(p.totalMin), 'Diferença': textoDiferenca(p.diferencaMin),
+        'Apontamentos': p.apontamentos, 'Operadores': p.operadores.join(', ')
+      });
+    });
+  });
+  baixarExcelGenerico(linhas, 'PREVISTO_REAL_ORDEM', 'previsto_x_real_por_ordem');
+}
 </script>
 </body>
 </html>
