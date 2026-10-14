@@ -144,7 +144,7 @@
     font-family:var(--font-mono);font-size:11px;letter-spacing:0.3px;
     padding:8px 10px;border-radius:8px;margin-bottom:12px;line-height:1.4;
   }
-  .acoes-card{display:flex;gap:8px;}
+  .acoes-card{display:flex;gap:8px;flex-wrap:wrap;}
   .btn-pausar{
     flex:1;background:var(--bg-elev);border:1px solid var(--amber-dim);color:var(--amber);
     font-family:var(--font-body);font-weight:700;font-size:12px;padding:10px;border-radius:8px;
@@ -516,6 +516,7 @@
             <th style="padding:8px;border-bottom:1px solid var(--border);">ORDEM</th>
             <th style="padding:8px;border-bottom:1px solid var(--border);">OP</th>
             <th style="padding:8px;border-bottom:1px solid var(--border);">OBSERVAÇÃO</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);">EMERGÊNCIA</th>
           </tr>
         </thead>
         <tbody id="rel-op-corpo"></tbody>
@@ -542,7 +543,6 @@
 </div>
 
 <div class="loading-overlay" id="loading">CARREGANDO...</div>
-
 <script>
 // ================== CONFIGURAÇÃO ==================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_5ffI5zZiIaNyOhFfRWVKsarDBAZYeO_xcb9ewe5Kjbb5-oHHqkY-cHuV7CVaDzwm/exec';
@@ -858,9 +858,11 @@ function cardOperacao(a){
       <div class="linha pj"><span>PJ</span><span>${escaparHtml(a.pj)}</span></div>
       <div class="linha"><span>Centro</span><span title="${nomeCentro?escaparHtml(nomeCentro):''}">${escaparHtml(a.centro)}${nomeCentro ? ' — '+escaparHtml(nomeCentro) : ''}</span></div>
       ${a.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(a.categoria) + '</span></div>' : ''}
+      ${a.emergencia ? '<div class="linha"><span>Emergência</span><span style="color:var(--amber);">Aprovada +30%</span></div>' : ''}
       ${a.observacao ? '<div class="linha descricao"><span>Descrição</span><span>' + escaparHtml(a.observacao) + '</span></div>' : ''}
       <div class="aviso-excedido" id="excedido-${a.id}" style="display:none;">⚠ Essa ordem excedeu o tempo previsto</div>
       <div class="acoes-card">
+        ${admin && admin.setor ? '<button class="btn-editar" style="flex-basis:100%;' + (a.emergencia ? 'border-color:var(--amber);color:var(--amber);' : '') + '" onclick="alternarEmergencia(\'' + a.id + '\')">' + (a.emergencia ? '🚨 EMERGÊNCIA APROVADA — REMOVER' : '🚨 MARCAR EMERGÊNCIA (+30%)') + '</button>' : ''}
         <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
         <button class="btn-editar" onclick="abrirModalEditar('${a.id}')">EDITAR</button>
         <button class="btn-encerrar" onclick="abrirModalEncerrar('${a.id}','${escaparHtml(a.nome)}','${escaparHtml(a.ordem)}')">ENCERRAR</button>
@@ -1007,6 +1009,24 @@ async function alternarPausa(id){
     if(document.getElementById('aba-mapa').style.display !== 'none') renderizarMapa();
   }catch(err){
     alert('Erro ao atualizar. Tente novamente.');
+  }
+  loading(false);
+}
+
+// ---------- emergência (+30%): marcada pelo encarregado ----------
+async function alternarEmergencia(id){
+  const a = todosAtivos.find(x => x.id === id);
+  if(!a) return;
+  const marcar = !a.emergencia;
+  if(!confirm(marcar ? 'Marcar como EMERGÊNCIA? A quantidade para pagamento terá +30%.' : 'Remover a emergência deste apontamento?')) return;
+  loading(true);
+  try{
+    const r = await chamarAPI(null,'POST',{ action:'marcarEmergencia', id, emergencia:marcar, por:admin.nome });
+    if(!r.ok) throw new Error(r.erro);
+    a.emergencia = marcar;
+    renderizarOperacoes();
+  }catch(err){
+    alert('Erro: ' + (err.message || 'tente novamente'));
   }
   loading(false);
 }
@@ -1365,12 +1385,13 @@ async function abrirRelatorioOperador(cracha, nome){
       quantidade: String(x.quantidade || 0).replace('.', ','),
       ordem: String(x.ordem || '').toUpperCase(),
       op: String(x.op || '').toUpperCase(),
-      observacao: (String(x.ordem || '') + ' - ' + String(x.op || '') + ' - ' + String(x.observacao || '')).toUpperCase()
+      observacao: (String(x.ordem || '') + ' - ' + String(x.op || '') + ' - ' + String(x.observacao || '')).toUpperCase(),
+      emergencia: x.emergencia ? 'EMERGÊNCIA APROVADA' : ''
     }));
     document.getElementById('rel-op-titulo').textContent = nome.toUpperCase();
     document.getElementById('rel-op-sub').textContent = 'RELATÓRIO DE ' + valor + ' — ' + relOperadorLinhas.length + ' APONTAMENTO(S)';
     document.getElementById('rel-op-corpo').innerHTML = relOperadorLinhas.length === 0
-      ? '<tr><td colspan="5" style="padding:14px;color:var(--text-dim);">NENHUM APONTAMENTO NESSE MÊS</td></tr>'
+      ? '<tr><td colspan="6" style="padding:14px;color:var(--text-dim);">NENHUM APONTAMENTO NESSE MÊS</td></tr>'
       : relOperadorLinhas.map(l => `
         <tr>
           <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--amber);">${escaparHtml(l.pj)}</td>
@@ -1378,6 +1399,7 @@ async function abrirRelatorioOperador(cracha, nome){
           <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.ordem)}</td>
           <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.op)}</td>
           <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.observacao)}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--amber);">${escaparHtml(l.emergencia)}</td>
         </tr>`).join('');
     document.getElementById('overlay-rel-operador').classList.add('active');
   }catch(err){
@@ -1388,7 +1410,7 @@ async function abrirRelatorioOperador(cracha, nome){
 function baixarRelatorioOperadorExcel(){
   if(relOperadorLinhas.length === 0){ alert('Sem dados pra exportar.'); return; }
   if(typeof XLSX === 'undefined'){ alert('Biblioteca de Excel ainda carregando, tente de novo.'); return; }
-  const linhas = relOperadorLinhas.map(l => ({ 'PJ': l.pj, 'QUANTIDADE': l.quantidade, 'ORDEM': l.ordem, 'OP': l.op, 'OBSERVAÇÃO': l.observacao }));
+  const linhas = relOperadorLinhas.map(l => ({ 'PJ': l.pj, 'QUANTIDADE': l.quantidade, 'ORDEM': l.ordem, 'OP': l.op, 'OBSERVAÇÃO': l.observacao, 'EMERGÊNCIA': l.emergencia }));
   const ws = XLSX.utils.json_to_sheet(linhas);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'RELATORIO');
@@ -1414,7 +1436,9 @@ async function abrirRelatorioDetalhado(cracha, nome){
       'Duração': formatarDuracao(x.duracaoMin), 'Tempo por dia': porDiaTexto(x.porDia),
       'Qtd': String(x.quantidade || 0).replace('.',','),
       'Valor': x.valorManual ? 'Manual (AE-1301)' : fmtValor(x.valorTotal),
-      'Aprovação': x.aprovacao || '', 'Status': x.status
+      'Aprovação': x.aprovacao || '',
+      'Emergência': x.emergencia ? 'APROVADA (+30%)' : '',
+      'Status': x.status
     }));
     document.getElementById('det-titulo').textContent = nome.toUpperCase();
     document.getElementById('det-sub').textContent = 'RELATÓRIO DETALHADO DE ' + valor + ' — ' + detLinhas.length + ' APONTAMENTO(S)';
