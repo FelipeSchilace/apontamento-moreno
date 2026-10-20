@@ -105,6 +105,14 @@
   .tab-dados{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;}
   .tab-dados th{padding:8px;text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap;}
   .tab-dados td{padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .st-ok{color:var(--green);font-weight:700;}
+  .st-falta{color:var(--amber);font-weight:700;}
+  .st-div{color:#ff8a80;font-weight:700;}
+  .btn-mini{
+    background:var(--bg-elev);border:1px solid var(--amber-dim);color:var(--amber);
+    font-family:var(--font-mono);font-size:10px;letter-spacing:0.5px;padding:5px 9px;border-radius:6px;cursor:pointer;
+  }
+  .btn-mini.remover{border-color:var(--border);color:var(--text-dim);}
 
   /* ---------- GRUPOS POR TIPO ---------- */
   .grupo-tipo{margin-bottom:32px;}
@@ -158,6 +166,11 @@
     flex:1;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
     font-family:var(--font-body);font-weight:700;font-size:12px;padding:10px;border-radius:8px;
   }
+  .eq-btn{
+    flex:1;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-body);font-weight:700;font-size:12px;padding:10px;border-radius:8px;
+  }
+  .eq-btn.sel{border-color:var(--amber);color:var(--amber);}
   .campo-edicao{margin-bottom:12px;text-align:left;}
   .campo-edicao label{
     display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:1px;
@@ -196,9 +209,6 @@
   .modal{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:26px 22px;width:100%;max-width:340px;}
   .modal h3{font-family:var(--font-display);font-size:19px;margin-bottom:6px;}
   .modal p{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:20px;letter-spacing:0.5px;line-height:1.6;}
-  .qtd-controle{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:22px;}
-  .qtd-controle button{width:48px;height:48px;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);font-size:22px;border-radius:8px;}
-  .qtd-controle input{width:90px;text-align:center;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:28px;padding:10px;border-radius:8px;}
   .modal-acoes{display:flex;gap:10px;}
   .modal-acoes button{flex:1;padding:14px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:14px;}
   .btn-cancelar{background:none;border:1px solid var(--border);color:var(--text-dim);}
@@ -308,6 +318,7 @@
         <button class="tab-btn" id="tab-consolidado" onclick="mudarAba('consolidado')" style="display:none;">CONSOLIDADO</button>
         <button class="tab-btn" id="tab-historico" onclick="mudarAba('historico')" style="display:none;">HISTÓRICO</button>
         <button class="tab-btn" id="tab-previsto" onclick="mudarAba('previsto')" style="display:none;">PREVISTO × REAL</button>
+        <button class="tab-btn" id="tab-conferencia" onclick="mudarAba('conferencia')" style="display:none;">CONFERÊNCIA</button>
       </div>
 
       <div class="conteudo">
@@ -390,6 +401,9 @@
             <button class="btn-atualizar" onclick="baixarHistoricoExcel()">⬇ EXCEL</button>
             <span class="contagem" id="contagem-historico"></span>
           </div>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Esqueceu de marcar uma emergência? Use o botão da última coluna: vale mesmo depois do serviço encerrado ou arquivado (+30% na quantidade paga).
+          </p>
           <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-historico"></table></div>
         </div>
 
@@ -415,21 +429,55 @@
           <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-previsto"></table></div>
         </div>
 
+        <!-- ABA CONFERÊNCIA (dupla/trio) -->
+        <div id="aba-conferencia" style="display:none;">
+          <div class="filtros">
+            <input type="date" id="c-de" title="De">
+            <input type="date" id="c-ate" title="Até">
+            <input type="text" id="c-ordem" placeholder="Ordem (opcional)">
+            <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:6px;">
+              <input type="checkbox" id="c-mostrar-ok" onchange="renderConferencia()"> mostrar os que fecharam (OK)
+            </label>
+            <button class="btn-atualizar" style="margin-left:0;" onclick="carregarConferencia()">GERAR</button>
+            <button class="btn-atualizar" onclick="baixarConferenciaExcel()">⬇ EXCEL</button>
+            <span class="contagem" id="contagem-conferencia"></span>
+          </div>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Confere se o que cada operador lançou em dupla/trio fecha com as peças totais da ordem (agrupa por ordem + OP + PJ).
+            <span class="st-div">DIVERGENTE</span>: a soma das partes não bate com as peças totais ·
+            <span class="st-falta">FALTA APONTAMENTO</span>: tem menos lançamentos que pessoas na equipe (o colega ainda não apontou ou informou outro total de peças) ·
+            <span class="st-ok">OK</span>: fechou (no trio, 0,34 × 3 = 1,02 é aceito).
+            Considera apenas apontamentos concluídos, iniciados no período, e só os feitos depois desta atualização (os antigos não têm equipe).
+          </p>
+          <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-conferencia"></table></div>
+        </div>
+
       </div>
     </section>
 
   </main>
 </div>
 
-<!-- MODAL ENCERRAR -->
+<!-- MODAL ENCERRAR (peças feitas + quem dividiu) -->
 <div class="overlay" id="overlay-encerrar">
   <div class="modal">
     <h3>Encerrar serviço</h3>
     <p id="texto-encerrar"></p>
-    <div class="qtd-controle">
-      <button onclick="alterarQtd(-1)">−</button>
-      <input type="number" id="input-qtd" value="0" step="0.01" inputmode="decimal">
-      <button onclick="alterarQtd(1)">+</button>
+    <div class="campo-edicao">
+      <label>Peças feitas na ordem</label>
+      <input type="number" id="input-pecas" value="1" step="0.01" inputmode="decimal" oninput="recalcularParte()">
+    </div>
+    <div class="campo-edicao">
+      <label>Quem fez</label>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="eq-btn sel" id="eq-1" onclick="escolherEquipe(1)">SOZINHO</button>
+        <button type="button" class="eq-btn" id="eq-2" onclick="escolherEquipe(2)">DUPLA</button>
+        <button type="button" class="eq-btn" id="eq-3" onclick="escolherEquipe(3)">TRIO</button>
+      </div>
+    </div>
+    <div class="campo-edicao">
+      <label>Parte do operador (quantidade)</label>
+      <input type="number" id="input-qtd" value="1" step="0.01" inputmode="decimal">
     </div>
     <div class="modal-acoes">
       <button class="btn-cancelar" onclick="fecharModalEncerrar()">CANCELAR</button>
@@ -662,7 +710,6 @@ let admin = null; // { usuario, nome, setor }
 let todosAtivos = [];
 let timerInterval = null;
 let encerrarIdAtual = null;
-let qtdAtual = 0;
 let pendentesAprovacao = [];
 
 // ---------- utilidades ----------
@@ -718,6 +765,7 @@ async function entrarAdmin(){
     document.getElementById('tab-consolidado').style.display = mostrar;
     document.getElementById('tab-historico').style.display = mostrar;
     document.getElementById('tab-previsto').style.display = mostrar;
+    document.getElementById('tab-conferencia').style.display = mostrar;
     todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
     popularFiltroOperadores();
     renderizarOperacoes();
@@ -742,13 +790,18 @@ function sair(){
   document.getElementById('tab-consolidado').style.display = 'none';
   document.getElementById('tab-historico').style.display = 'none';
   document.getElementById('tab-previsto').style.display = 'none';
+  document.getElementById('tab-conferencia').style.display = 'none';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tela-login').classList.add('active');
 }
 
 // ---------- abas ----------
+function primeiroDiaDoMes(){
+  const hoje = new Date();
+  return hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
+}
 function mudarAba(nome){
-  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico','previsto'].forEach(n => {
+  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico','previsto','conferencia'].forEach(n => {
     document.getElementById('tab-' + n).classList.toggle('active', nome === n);
     document.getElementById('aba-' + n).style.display = nome === n ? 'block' : 'none';
   });
@@ -760,12 +813,13 @@ function mudarAba(nome){
     document.getElementById('f-mes-consolidado').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
   }
   if(nome==='historico' && !document.getElementById('h-de').value){
-    const hoje = new Date();
-    document.getElementById('h-de').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
+    document.getElementById('h-de').value = primeiroDiaDoMes();
   }
   if(nome==='previsto' && !document.getElementById('p-de').value){
-    const hoje = new Date();
-    document.getElementById('p-de').value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
+    document.getElementById('p-de').value = primeiroDiaDoMes();
+  }
+  if(nome==='conferencia' && !document.getElementById('c-de').value){
+    document.getElementById('c-de').value = primeiroDiaDoMes();
   }
 }
 
@@ -1031,33 +1085,43 @@ async function alternarEmergencia(id){
   loading(false);
 }
 
-// ---------- encerrar ----------
+// ---------- encerrar (peças feitas + quem dividiu → parte do operador) ----------
+let equipeAtual = 1;
+// arredonda para cima em 2 casas: 1 peça em trio = 0,34 pra cada um
+function parteDe(pecas, equipe){ return Math.ceil((pecas / equipe) * 100 - 1e-9) / 100; }
+function lerNum(id){
+  const v = parseFloat(String(document.getElementById(id).value).replace(',', '.'));
+  return isNaN(v) ? 0 : v;
+}
+function recalcularParte(){
+  document.getElementById('input-qtd').value = parteDe(lerNum('input-pecas'), equipeAtual);
+}
+function escolherEquipe(n){
+  equipeAtual = n;
+  [1,2,3].forEach(i => document.getElementById('eq-' + i).classList.toggle('sel', i === n));
+  recalcularParte();
+}
 function abrirModalEncerrar(id, nome, ordem){
   encerrarIdAtual = id;
-  qtdAtual = 0;
-  document.getElementById('input-qtd').value = 0;
-  document.getElementById('texto-encerrar').textContent = nome + ' — Ordem ' + ordem + '. Quantas peças foram produzidas? (aceita decimal, ex: 0,5 ou 0,34 em serviço feito em dupla/trio)';
+  document.getElementById('texto-encerrar').textContent = nome + ' — Ordem ' + ordem + '. Informe as peças feitas e quem dividiu o serviço; a parte do operador é calculada (e pode ser ajustada).';
+  document.getElementById('input-pecas').value = 1;
+  escolherEquipe(1);
   document.getElementById('overlay-encerrar').classList.add('active');
 }
 function fecharModalEncerrar(){
   document.getElementById('overlay-encerrar').classList.remove('active');
   encerrarIdAtual = null;
 }
-function alterarQtd(delta){
-  qtdAtual = Math.max(0, Math.round((qtdAtual + delta) * 100) / 100);
-  document.getElementById('input-qtd').value = qtdAtual;
-}
-document.getElementById('input-qtd').addEventListener('input', function(){
-  const v = parseFloat(String(this.value).replace(',', '.'));
-  qtdAtual = isNaN(v) ? 0 : Math.max(0, v);
-});
 async function confirmarEncerrar(){
   if(!encerrarIdAtual) return;
+  const id = encerrarIdAtual;
   loading(true);
   try{
-    const r = await chamarAPI(null,'POST',{action:'encerrar', id:encerrarIdAtual, quantidade:qtdAtual});
+    const r = await chamarAPI(null,'POST',{
+      action:'encerrar', id, quantidade: lerNum('input-qtd'), qtdTotal: lerNum('input-pecas'), equipe: equipeAtual
+    });
     if(!r.ok) throw new Error(r.erro);
-    todosAtivos = todosAtivos.filter(a => a.id !== encerrarIdAtual);
+    todosAtivos = todosAtivos.filter(a => a.id !== id);
     fecharModalEncerrar();
     popularFiltroOperadores();
     renderizarOperacoes();
@@ -1349,6 +1413,7 @@ function escolherDetalhado(){ fecharEscolhaOp(); abrirRelatorioDetalhado(opSel.c
 // ---------- helpers de tabela / formatação ----------
 function fmtData(v){ if(!v) return '—'; const d=new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('pt-BR'); }
 function fmtValor(v){ return (v==null || isNaN(Number(v))) ? '—' : 'R$ ' + Number(v).toFixed(2).replace('.',','); }
+function numBr(v){ return String(Math.round(Number(v) * 100) / 100).replace('.', ','); }
 function porDiaTexto(p){
   if(!p || Object.keys(p).length < 2) return '';
   return Object.keys(p).sort().map(k => { const s=k.split('-'); return s[2]+'/'+s[1]+': '+formatarDuracao(p[k]); }).join(' · ');
@@ -1450,8 +1515,40 @@ async function abrirRelatorioDetalhado(cracha, nome){
   loading(false);
 }
 
-// ---------- HISTÓRICO ----------
-let historicoLinhas = [];
+// ---------- HISTÓRICO (com emergência, equipe e peças totais) ----------
+let historicoRegistros = [];
+const NOMES_EQUIPE = { 1:'Sozinho', 2:'Dupla', 3:'Trio' };
+function linhasHistorico(){
+  return historicoRegistros.map(x => ({
+    'Data': fmtData(x.data), 'Operador': x.nome, 'Ordem': x.ordem, 'OP': x.op, 'PJ': x.pj,
+    'Centro': x.centro + (nomeDoCentro(x.centro) ? ' — ' + nomeDoCentro(x.centro) : ''),
+    'Categoria': x.categoria || '', 'Descrição': x.observacao || '',
+    'Início': formatarHora(x.horaInicio), 'Fim': formatarHora(x.horaFim),
+    'Duração': formatarDuracao(x.duracaoMin), 'Pausa': formatarDuracao(x.pausaMin),
+    'Qtd': String(x.quantidade || 0).replace('.',','),
+    'Peças totais': x.qtdTotal ? String(x.qtdTotal).replace('.',',') : '',
+    'Equipe': x.equipe ? (NOMES_EQUIPE[x.equipe] || x.equipe) : '',
+    'Emergência': x.emergencia ? 'APROVADA (+30%)' : '',
+    'Aprovação': x.aprovacao || '', 'Status': x.status
+  }));
+}
+function renderHistorico(){
+  const t = document.getElementById('tabela-historico');
+  const linhas = linhasHistorico();
+  if(!linhas.length){
+    t.innerHTML = '<tbody><tr><td style="color:var(--text-dim);">NADA ENCONTRADO</td></tr></tbody>';
+    return;
+  }
+  const cols = Object.keys(linhas[0]).filter(c => c !== 'Emergência');
+  t.innerHTML = '<thead><tr>' + cols.map(c => '<th>' + escaparHtml(c) + '</th>').join('') + '<th>Emergência (+30%)</th></tr></thead><tbody>' +
+    linhas.map((l, i) => {
+      const r = historicoRegistros[i];
+      return '<tr>' + cols.map(c => '<td>' + escaparHtml(l[c]) + '</td>').join('') +
+        '<td>' + (r.emergencia ? '<span class="st-falta">APROVADA</span> ' : '') +
+        '<button class="btn-mini' + (r.emergencia ? ' remover' : '') + '" onclick="alternarEmergenciaHistorico(' + i + ')">' +
+        (r.emergencia ? 'REMOVER' : 'MARCAR') + '</button></td></tr>';
+    }).join('') + '</tbody>';
+}
 async function carregarHistorico(){
   const g = id => document.getElementById(id).value.trim();
   loading(true);
@@ -1461,24 +1558,109 @@ async function carregarHistorico(){
       dataDe: g('h-de'), dataAte: g('h-ate'), operador: g('h-operador'), centro: g('h-centro'), ordem: g('h-ordem')
     });
     if(!r.ok) throw new Error(r.erro);
-    historicoLinhas = (r.registros || []).map(x => ({
-      'Data': fmtData(x.data), 'Operador': x.nome, 'Ordem': x.ordem, 'OP': x.op, 'PJ': x.pj,
-      'Centro': x.centro + (nomeDoCentro(x.centro) ? ' — ' + nomeDoCentro(x.centro) : ''),
-      'Categoria': x.categoria || '', 'Descrição': x.observacao || '',
-      'Início': formatarHora(x.horaInicio), 'Fim': formatarHora(x.horaFim),
-      'Duração': formatarDuracao(x.duracaoMin), 'Pausa': formatarDuracao(x.pausaMin),
-      'Qtd': String(x.quantidade || 0).replace('.',','),
-      'Aprovação': x.aprovacao || '', 'Status': x.status
-    }));
+    historicoRegistros = r.registros || [];
     document.getElementById('contagem-historico').textContent =
-      historicoLinhas.length + ' registro(s)' + (r.truncado ? ' — mostrando os 1000 mais recentes, refine os filtros' : '');
-    renderTabela('tabela-historico', historicoLinhas);
+      historicoRegistros.length + ' registro(s)' + (r.truncado ? ' — mostrando os 1000 mais recentes, refine os filtros' : '');
+    renderHistorico();
   }catch(err){
     alert('Erro ao buscar o histórico.');
   }
   loading(false);
 }
-function baixarHistoricoExcel(){ baixarExcelGenerico(historicoLinhas, 'HISTORICO', 'historico_apontamentos'); }
+async function alternarEmergenciaHistorico(i){
+  const r = historicoRegistros[i];
+  if(!r || !r.id) return;
+  const marcar = !r.emergencia;
+  const msg = marcar
+    ? 'Marcar como EMERGÊNCIA (+30%) o serviço de ' + r.nome + ' — Ordem ' + r.ordem + '?'
+    : 'Remover a emergência do serviço de ' + r.nome + ' — Ordem ' + r.ordem + '?';
+  if(!confirm(msg)) return;
+  loading(true);
+  try{
+    const resp = await chamarAPI(null, 'POST', { action:'marcarEmergencia', id:r.id, emergencia:marcar, por:admin.nome });
+    if(!resp.ok) throw new Error(resp.erro);
+    r.emergencia = marcar;
+    renderHistorico();
+  }catch(err){
+    alert('Erro: ' + (err.message || 'tente novamente'));
+  }
+  loading(false);
+}
+function baixarHistoricoExcel(){ baixarExcelGenerico(linhasHistorico(), 'HISTORICO', 'historico_apontamentos'); }
+
+// ---------- CONFERÊNCIA (dupla/trio) ----------
+let conferenciaLinhas = [];
+function classeStatusConf(s){ return s === 'OK' ? 'st-ok' : (s === 'DIVERGENTE' ? 'st-div' : 'st-falta'); }
+function textoStatusConf(l){
+  if(l.status === 'FALTA APONTAMENTO') return l.status + ' (' + (l.faltam > 1 ? 'faltam ' : 'falta ') + l.faltam + ')';
+  return l.status;
+}
+function textoOperadoresConf(l){
+  return l.operadores.map(o => o.nome + ' (' + numBr(o.quantidade) + ')').join(' · ') +
+    (l.outrosTotais ? '  ⚠ há outros lançamentos desta ordem/OP/PJ com total de peças diferente' : '');
+}
+function textoDifConf(d){ return (d > 0 ? '+' : '') + numBr(d); }
+async function carregarConferencia(){
+  const g = id => document.getElementById(id).value.trim();
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', {
+      action:'relatorioConferencia', setor: (admin && admin.setor) || 'Todos',
+      dataDe: g('c-de'), dataAte: g('c-ate'), ordem: g('c-ordem')
+    });
+    if(!r.ok) throw new Error(r.erro);
+    conferenciaLinhas = r.linhas || [];
+    renderConferencia();
+  }catch(err){
+    alert('Erro ao gerar a conferência.');
+  }
+  loading(false);
+}
+function conferenciaVisivel(){
+  const mostrarOk = document.getElementById('c-mostrar-ok').checked;
+  return conferenciaLinhas.filter(l => mostrarOk || l.status !== 'OK');
+}
+function renderConferencia(){
+  const problemas = conferenciaLinhas.filter(l => l.status !== 'OK').length;
+  document.getElementById('contagem-conferencia').textContent =
+    problemas + ' com problema · ' + conferenciaLinhas.length + ' conferido(s)';
+  const t = document.getElementById('tabela-conferencia');
+  const lista = conferenciaVisivel();
+  if(!lista.length){
+    t.innerHTML = '<tbody><tr><td style="color:var(--text-dim);">' +
+      (conferenciaLinhas.length
+        ? 'NENHUM PROBLEMA ENCONTRADO — marque "mostrar os que fecharam" para ver todos'
+        : 'NADA PARA CONFERIR NO PERÍODO (só entram serviços encerrados depois desta atualização)') +
+      '</td></tr></tbody>';
+    return;
+  }
+  const cab = ['Status','Ordem','OP','PJ','Peças totais','Equipe','Lançamentos','Soma lançada','Esperado','Diferença','Operadores (parte lançada)'];
+  t.innerHTML = '<thead><tr>' + cab.map(c => '<th>' + escaparHtml(c) + '</th>').join('') + '</tr></thead><tbody>' +
+    lista.map(l =>
+      '<tr>' +
+      '<td class="' + classeStatusConf(l.status) + '">' + escaparHtml(textoStatusConf(l)) + '</td>' +
+      '<td>' + escaparHtml(l.ordem) + '</td>' +
+      '<td>' + escaparHtml(l.op) + '</td>' +
+      '<td>' + escaparHtml(l.pj) + '</td>' +
+      '<td>' + numBr(l.qtdTotal) + '</td>' +
+      '<td>' + escaparHtml(NOMES_EQUIPE[l.equipe] || l.equipe) + '</td>' +
+      '<td>' + l.lancamentos + '</td>' +
+      '<td>' + numBr(l.soma) + '</td>' +
+      '<td>' + numBr(l.esperado) + '</td>' +
+      '<td>' + textoDifConf(l.diferenca) + '</td>' +
+      '<td>' + escaparHtml(textoOperadoresConf(l)) + '</td>' +
+      '</tr>'
+    ).join('') + '</tbody>';
+}
+function baixarConferenciaExcel(){
+  const linhas = conferenciaVisivel().map(l => ({
+    'Status': textoStatusConf(l), 'Ordem': l.ordem, 'OP': l.op, 'PJ': l.pj,
+    'Peças totais': numBr(l.qtdTotal), 'Equipe': NOMES_EQUIPE[l.equipe] || l.equipe,
+    'Lançamentos': l.lancamentos, 'Soma lançada': numBr(l.soma), 'Esperado': numBr(l.esperado),
+    'Diferença': textoDifConf(l.diferenca), 'Operadores': textoOperadoresConf(l)
+  }));
+  baixarExcelGenerico(linhas, 'CONFERENCIA', 'conferencia_dupla_trio');
+}
 
 // ---------- PREVISTO × REALIZADO POR ORDEM ----------
 let previstoOrdens = [];
