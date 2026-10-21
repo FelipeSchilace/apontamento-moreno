@@ -230,7 +230,7 @@
   .campo select{appearance:none;-webkit-appearance:none;}
   .campo input:focus, .campo textarea:focus, .campo select:focus{border-color:var(--amber);}
   .campo textarea{resize:none;min-height:60px;}
-  .campo.obrigatorio-1301 textarea, .campo.obrigatorio-1301 select{border-color:var(--amber);}
+  .campo.obrigatorio-1301 textarea, .campo.obrigatorio-1301 select, .campo.obrigatorio-1301 input{border-color:var(--amber);}
   .campo.obrigatorio-1301 label{color:var(--amber);}
   .aviso-pj{
     font-family:var(--font-mono);
@@ -417,6 +417,8 @@
     padding:26px 22px;
     width:100%;
     max-width:340px;
+    max-height:92vh;
+    overflow:auto;
   }
   .modal h3{
     font-family:var(--font-display);
@@ -436,6 +438,7 @@
   .btn-cancelar{background:none;border:1px solid var(--border);color:var(--text-dim);}
   .btn-confirmar{background:var(--red);border:none;color:#fff;}
   .btn-confirmar.amber{background:var(--amber);color:#1a1a1a;}
+  .btn-confirmar.verde{background:var(--green);}
 
   .loading-overlay{
     position:fixed;inset:0;background:rgba(18,18,18,0.85);
@@ -485,6 +488,60 @@
   }
   .card-relatorio .linha span:first-child{color:var(--text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
   .card-relatorio .linha span:last-child{font-weight:600;text-align:right;}
+
+  /* ---------- FECHAMENTO MENSAL ---------- */
+  .bloco-fechamento{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+  }
+  .bloco-fechamento.ok{border-color:var(--green);}
+  .bloco-fechamento.atencao{border-color:var(--amber);}
+  .bloco-fechamento.erro{border-color:var(--red);}
+  .bloco-fechamento .fech-titulo{
+    font-family:var(--font-display);
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    margin-bottom:8px;
+  }
+  .bloco-fechamento .fech-texto{
+    font-size:13px;
+    color:var(--text-dim);
+    line-height:1.5;
+  }
+  .bloco-fechamento .fech-aviso{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--amber);
+    line-height:1.5;
+    margin-top:10px;
+  }
+  .fech-botoes{display:flex;gap:10px;margin-top:14px;}
+  .fech-botoes button{flex:1;padding:14px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:14px;}
+  .btn-aprovar-mes{background:var(--green);border:none;color:#fff;}
+  .btn-contestar-mes{background:none;border:1px solid var(--red-dim);color:#ec8a80;}
+  .aprovar-resumo{
+    background:var(--bg-elev);
+    border-radius:8px;
+    padding:10px 12px;
+    margin-bottom:14px;
+    font-size:13px;
+  }
+  .aprovar-resumo .linha{display:flex;justify-content:space-between;padding:3px 0;}
+  .aprovar-resumo .linha span:first-child{color:var(--text-dim);font-family:var(--font-mono);font-size:11px;text-transform:uppercase;}
+  .aprovar-resumo .linha span:last-child{font-weight:700;}
+  .aviso-libera{
+    background:rgba(230,162,60,0.12);
+    border:1px solid var(--amber-dim);
+    color:var(--amber);
+    border-radius:8px;
+    padding:12px;
+    font-size:13px;
+    line-height:1.5;
+    margin-bottom:14px;
+  }
 </style>
 </head>
 <body>
@@ -582,6 +639,11 @@
           <option value="Serviço não previsto">Serviço não previsto</option>
         </select>
       </div>
+      <div class="campo obrigatorio-1301" id="campo-rnc" style="display:none;">
+        <label>Nº da RNC (obrigatório)</label>
+        <input type="text" id="f-rnc" autocomplete="off" placeholder="Digite o número da RNC">
+        <div class="aviso-pj">O valor da RNC é definido pela engenharia e liberado depois que ela responder.</div>
+      </div>
       <div class="campo obrigatorio-1301" id="campo-obs" style="display:none;">
         <label>Descrição do serviço (obrigatório para o AE-1301)</label>
         <textarea id="f-obs"></textarea>
@@ -619,6 +681,7 @@
       <div class="erro-form" id="erro-relatorio"></div>
 
       <div id="resumo-relatorio" style="margin-top:20px;display:none;"></div>
+      <div id="bloco-fechamento" class="bloco-fechamento" style="margin-top:14px;display:none;"></div>
       <div id="lista-relatorio" style="margin-top:14px;"></div>
       <button class="btn-novo-flutuante" id="btn-baixar-csv" style="display:none;margin-top:16px;" onclick="baixarCsvRelatorio()">⬇ BAIXAR PLANILHA (CSV)</button>
     </section>
@@ -666,6 +729,44 @@
   </div>
 </div>
 
+<!-- MODAL APROVAR MÊS -->
+<div class="overlay" id="overlay-aprovar-mes">
+  <div class="modal">
+    <h3>Aprovar meu mês</h3>
+    <div class="aprovar-resumo" id="aprovar-resumo"></div>
+    <div class="aviso-libera">
+      <b>Atenção:</b> ao aprovar, você confirma que conferiu seus apontamentos deste mês.
+      <b>Sua aprovação libera o relatório para a próxima etapa: a conferência da empresa.</b>
+      Depois de aprovado, você não poderá alterar.
+    </div>
+    <div class="campo" style="margin-bottom:10px;">
+      <label>Digite seu crachá para confirmar</label>
+      <input type="text" id="aprovar-cracha" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+    </div>
+    <div class="erro-form" id="aprovar-erro" style="margin-top:0;margin-bottom:10px;"></div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalAprovarMes()">CANCELAR</button>
+      <button class="btn-confirmar verde" onclick="confirmarAprovarMes()">APROVAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTESTAR MÊS -->
+<div class="overlay" id="overlay-contestar-mes">
+  <div class="modal">
+    <h3>Contestar meu mês</h3>
+    <p>Explique o que está errado (ex.: faltou a ordem 1234 do dia 12). A empresa vai analisar, ajustar e depois você poderá aprovar.</p>
+    <div class="campo" style="margin-bottom:10px;">
+      <textarea id="contestar-texto" style="min-height:100px;"></textarea>
+    </div>
+    <div class="erro-form" id="contestar-erro" style="margin-top:0;margin-bottom:10px;"></div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalContestarMes()">CANCELAR</button>
+      <button class="btn-confirmar" onclick="confirmarContestarMes()">ENVIAR</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading">ENVIANDO...</div>
 
 <script>
@@ -677,7 +778,7 @@ const CHAVE_CRACHA_SALVO = 'moreno_apontamento_cracha';
 let operadores = [];
 let crachaDigitado = '';
 let sessao = null;              // { nome, cracha }
-let apontamentosAtivos = [];    // [{ id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro, observacao, categoria, emergencia }]
+let apontamentosAtivos = [];    // [{ id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro, observacao, categoria, rncNumero, emergencia }]
 let timerInterval = null;
 let encerrarIdAtual = null;     // id do apontamento sendo encerrado no modal
 
@@ -779,6 +880,10 @@ function escaparHtml(v){
   const d = document.createElement('div');
   d.textContent = v == null ? '' : String(v);
   return d.innerHTML;
+}
+// mesmo padrão do servidor: maiúsculas, sem espaços, sem zeros à esquerda
+function normRncCliente(v){
+  return String(v == null ? '' : v).trim().toUpperCase().replace(/\s+/g, '').replace(/^0+(?=.)/, '');
 }
 
 // ---------- login ----------
@@ -898,7 +1003,16 @@ function atualizarCamposPj1301(eh1301){
   document.getElementById('aviso-pj').style.display = eh1301 ? 'block' : 'none';
   document.getElementById('campo-categoria').style.display = eh1301 ? 'block' : 'none';
   document.getElementById('campo-obs').style.display = eh1301 ? 'block' : 'none';
+  atualizarCampoRnc();
 }
+// O campo "Nº da RNC" só aparece no AE-1301 com a categoria RNC
+function atualizarCampoRnc(){
+  const eh1301 = pjTipoSelecionado === 'AE' && document.getElementById('f-pj-numero').value.trim() === '1301';
+  const mostrar = eh1301 && document.getElementById('f-categoria').value === 'RNC';
+  document.getElementById('campo-rnc').style.display = mostrar ? 'block' : 'none';
+  if(!mostrar) document.getElementById('f-rnc').value = '';
+}
+document.getElementById('f-categoria').addEventListener('change', atualizarCampoRnc);
 
 document.getElementById('f-pj-numero').addEventListener('input', function(){
   clearTimeout(buscaPjTimeout);
@@ -955,7 +1069,7 @@ async function buscarDescricaoPj(tipo, numero){
 
 // ---------- navegação novo apontamento ----------
 function irParaNovo(){
-  ['f-ordem','f-op','f-centro','f-obs'].forEach(id=>document.getElementById(id).value='');
+  ['f-ordem','f-op','f-centro','f-obs','f-rnc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-pj-numero').value = '';
   document.getElementById('f-categoria').value = '';
   pjTipoSelecionado = null;
@@ -985,6 +1099,7 @@ function tentarIniciarApontamento(){
   const pjNumero = document.getElementById('f-pj-numero').value.trim();
   const categoria = document.getElementById('f-categoria').value;
   const obsManual = document.getElementById('f-obs').value.trim();
+  const rnc = normRncCliente(document.getElementById('f-rnc').value);
 
   if(!ordem || !op || !centro){
     erroEl.textContent = 'Preencha Ordem, Operação e Centro de Trabalho';
@@ -1001,10 +1116,18 @@ function tentarIniciarApontamento(){
 
   const eh1301 = pjTipoSelecionado === 'AE' && pjNumero === '1301';
   let observacaoFinal;
+  let rncNumero = '';
   if(eh1301){
     if(!categoria){
       erroEl.textContent = 'Selecione a categoria do serviço (obrigatório para o PJ AE-1301)';
       return;
+    }
+    if(categoria === 'RNC'){
+      if(!rnc){
+        erroEl.textContent = 'Informe o Nº da RNC';
+        return;
+      }
+      rncNumero = rnc;
     }
     if(!obsManual){
       erroEl.textContent = 'Descreva do que se trata o serviço (obrigatório para o PJ AE-1301)';
@@ -1026,7 +1149,7 @@ function tentarIniciarApontamento(){
     return;
   }
 
-  dadosNovoApontamento = { ordem, op, pjTipo: pjTipoSelecionado, pjNumero, centro, obs: observacaoFinal, categoria };
+  dadosNovoApontamento = { ordem, op, pjTipo: pjTipoSelecionado, pjNumero, centro, obs: observacaoFinal, categoria, rncNumero };
 
   const outrasOrdens = [...new Set(
     apontamentosAtivos.filter(a => String(a.ordem).trim() !== ordem).map(a => String(a.ordem).trim())
@@ -1048,16 +1171,16 @@ function confirmarNovoMesmaOrdem(){
 }
 
 function iniciarApontamento(){
-  const { ordem, op, pjTipo, pjNumero, centro, obs, categoria } = dadosNovoApontamento;
+  const { ordem, op, pjTipo, pjNumero, centro, obs, categoria, rncNumero } = dadosNovoApontamento;
   const ts = Date.now();
   const id = ts + '_' + sessao.cracha;
   apontamentosAtivos.push({
     id, inicioTs:ts, pausaMin:0, pausadoTs:null,
-    status:'EM ANDAMENTO', ordem, op, pj: pjTipo + '-' + pjNumero, centro, observacao: obs, categoria
+    status:'EM ANDAMENTO', ordem, op, pj: pjTipo + '-' + pjNumero, centro, observacao: obs, categoria, rncNumero
   });
   enfileirar({
     action:'iniciar', id, ts, cracha:sessao.cracha, nome:sessao.nome,
-    ordem, op, pjTipo, pjNumero, centro, observacao: obs, categoria
+    ordem, op, pjTipo, pjNumero, centro, observacao: obs, categoria, rncNumero
   });
   abrirTelaLista();
 }
@@ -1090,6 +1213,7 @@ function renderizarLista(){
         <div class="linha pj"><span>PJ</span><span>${escaparHtml(a.pj)}</span></div>
         <div class="linha"><span>Centro</span><span>${escaparHtml(a.centro)}</span></div>
         ${a.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(a.categoria) + '</span></div>' : ''}
+        ${a.rncNumero ? '<div class="linha"><span>RNC</span><span>' + escaparHtml(a.rncNumero) + '</span></div>' : ''}
         ${a.emergencia ? '<div class="linha"><span>Emergência</span><span>Aprovada +30%</span></div>' : ''}
         ${a.observacao ? '<div class="linha"><span>Descrição</span><span>' + escaparHtml(a.observacao) + '</span></div>' : ''}
       </div>
@@ -1348,6 +1472,7 @@ function abrirRelatorio(){
   if(!inputMes.value) inputMes.value = valorPadrao;
   document.getElementById('erro-relatorio').textContent = '';
   document.getElementById('resumo-relatorio').style.display = 'none';
+  document.getElementById('bloco-fechamento').style.display = 'none';
   document.getElementById('btn-baixar-csv').style.display = 'none';
   document.getElementById('lista-relatorio').innerHTML = '';
   mostrarTela('tela-relatorio');
@@ -1368,14 +1493,16 @@ async function gerarRelatorio(){
     if(!r.ok) throw new Error(r.erro);
     ultimoRelatorio = r.registros || [];
     renderizarRelatorio();
+    await carregarFechamentoMes();
   }catch(err){
     erroEl.textContent = (err && err.message) ? err.message : 'Erro ao gerar relatório. Tente novamente.';
   }
   loading(false);
 }
 
-// Texto do valor: para o AE-1301 acrescenta a situação da aprovação
+// Texto do valor: RNC sem retorno da engenharia; AE-1301 comum mostra a situação da aprovação
 function textoValor(r){
+  if(r.rncPendente) return 'Aguardando engenharia';
   const base = r.valorManual ? 'Manual' : formatarValor(r.valorTotal);
   if(r.aprovacao){
     return base + ' · ' + traduzirAprovacao(r.aprovacao);
@@ -1395,7 +1522,7 @@ function renderizarRelatorio(){
     return;
   }
 
-  const totalQtd = ultimoRelatorio.reduce((s,r) => s + (Number(r.quantidade)||0), 0);
+  const totalQtd = ultimoRelatorio.reduce((s,r) => s + (r.rncPendente ? 0 : (Number(r.quantidade)||0)), 0);
   const totalValor = ultimoRelatorio.reduce((s,r) => s + (Number(r.valorTotal)||0), 0);
   const temManual = ultimoRelatorio.some(r => r.valorManual);
 
@@ -1414,6 +1541,7 @@ function renderizarRelatorio(){
       <div class="linha"><span>Ordem</span><span>${escaparHtml(r.ordem)}</span></div>
       <div class="linha"><span>Operação</span><span>${escaparHtml(r.op)}</span></div>
       <div class="linha"><span>PJ</span><span>${escaparHtml(r.pj || '—')}</span></div>
+      ${r.rncNumero ? '<div class="linha"><span>RNC</span><span>' + escaparHtml(r.rncNumero) + (r.rncPendente ? ' (aguardando engenharia)' : '') + '</span></div>' : ''}
       <div class="linha"><span>Descrição</span><span>${escaparHtml(r.observacao || '—')}</span></div>
       <div class="linha"><span>Quantidade</span><span>${String(r.quantidade||0).replace('.', ',')}</span></div>
       ${r.emergencia ? '<div class="linha"><span>Emergência</span><span>Aprovada +30%</span></div>' : ''}
@@ -1443,13 +1571,14 @@ function traduzirAprovacao(status){
 
 function baixarCsvRelatorio(){
   if(!ultimoRelatorio || ultimoRelatorio.length === 0) return;
-  const linhas = ['Data;Ordem;Operacao;PJ;Descricao;Quantidade;Valor'];
+  const linhas = ['Data;Ordem;Operacao;PJ;RNC;Descricao;Quantidade;Valor'];
   ultimoRelatorio.forEach(r => {
     linhas.push([
       formatarDataCurta(r.data),
       r.ordem,
       r.op,
       r.pj || '',
+      r.rncNumero || '',
       (r.observacao || '').replace(/;/g, ','),
       String(r.quantidade || 0).replace('.', ','),
       textoValor(r).replace('R$ ', '')
@@ -1466,6 +1595,134 @@ function baixarCsvRelatorio(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ---------- FECHAMENTO MENSAL: o operador aprova (ou contesta) o mês dele ----------
+let fechamentoAtual = null;
+function mesSelecionado(){
+  const [anoStr, mesStr] = document.getElementById('f-mes-relatorio').value.split('-');
+  return { ano: Number(anoStr), mes: Number(mesStr) };
+}
+async function carregarFechamentoMes(){
+  const valor = document.getElementById('f-mes-relatorio').value;
+  if(!valor){ fechamentoAtual = null; renderBlocoFechamento(); return; }
+  const { ano, mes } = mesSelecionado();
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'statusFechamento', cracha:sessao.cracha, ano, mes });
+    fechamentoAtual = r.ok ? r : null;
+  }catch(err){
+    fechamentoAtual = null;   // sem conexão: o bloco simplesmente não aparece
+  }
+  renderBlocoFechamento();
+}
+function renderBlocoFechamento(){
+  const bloco = document.getElementById('bloco-fechamento');
+  const f = fechamentoAtual;
+  if(!f){ bloco.style.display = 'none'; bloco.innerHTML = ''; return; }
+
+  let classe = '', titulo = '', texto = '', botoes = '';
+  if(f.status === 'AGUARDANDO'){
+    classe = 'atencao';
+    titulo = 'Aprovação do mês';
+    if(f.alterado){
+      texto = 'Houve alteração no seu relatório depois da sua última aprovação. Confira os apontamentos abaixo e aprove de novo.';
+    } else if(f.podeAprovar){
+      texto = 'Confira seus apontamentos abaixo. Estando tudo certo, aprove: sua aprovação libera o relatório para a próxima etapa, a conferência da empresa. Se algo estiver errado, conteste.';
+    } else {
+      texto = f.motivoBloqueio || 'Este mês ainda não pode ser aprovado.';
+    }
+    if(f.podeAprovar){
+      botoes = '<div class="fech-botoes">' +
+        '<button class="btn-contestar-mes" onclick="abrirModalContestarMes()">CONTESTAR</button>' +
+        '<button class="btn-aprovar-mes" onclick="abrirModalAprovarMes()">APROVAR MEU MÊS</button></div>';
+    }
+  } else if(f.status === 'APROVADO_OPERADOR'){
+    classe = 'ok';
+    titulo = '✔ Você aprovou este mês';
+    texto = 'Aprovado em ' + formatarDataCurta(f.operadorEm) + '. Seu relatório foi liberado e agora aguarda a conferência da empresa.';
+  } else if(f.status === 'CONTESTADO'){
+    classe = 'erro';
+    titulo = '⚠ Você contestou este mês';
+    texto = 'Sua observação: “' + (f.comentario || '') + '”. A empresa vai analisar e ajustar; depois você poderá aprovar.';
+  } else if(f.status === 'LIBERADO_ADMIN'){
+    classe = 'ok';
+    titulo = 'Mês liberado pela empresa';
+    texto = 'A empresa liberou este mês para conferência' + (f.motivo ? '. Motivo: ' + f.motivo : '.');
+  } else if(f.status === 'CONFERIDO'){
+    classe = 'ok';
+    titulo = '✔✔ Mês conferido pela empresa';
+    texto = 'Conferido em ' + formatarDataCurta(f.conferidoEm) + '.' + (f.alterado ? ' Atenção: houve alteração no relatório depois da conferência; procure a empresa.' : '');
+  }
+
+  const r = f.resumo || {};
+  let avisos = '';
+  if(r.ae1301Pendentes > 0) avisos += '<div class="fech-aviso">⚠ ' + r.ae1301Pendentes + ' serviço(s) do PJ AE-1301 aguardam aprovação da empresa.</div>';
+  if(r.rncPendentes > 0) avisos += '<div class="fech-aviso">⚠ ' + r.rncPendentes + ' serviço(s) de RNC aguardam a engenharia: o valor ainda não está definido e entra no pagamento do mês em que a RNC for fechada.</div>';
+
+  bloco.className = 'bloco-fechamento ' + classe;
+  bloco.innerHTML = '<div class="fech-titulo">' + escaparHtml(titulo) + '</div>' +
+    '<div class="fech-texto">' + escaparHtml(texto) + '</div>' + avisos + botoes;
+  bloco.style.display = 'block';
+}
+
+function abrirModalAprovarMes(){
+  const f = fechamentoAtual;
+  if(!f || !f.podeAprovar) return;
+  const r = f.resumo || {};
+  document.getElementById('aprovar-resumo').innerHTML =
+    '<div class="linha"><span>Apontamentos</span><span>' + r.apontamentos + '</span></div>' +
+    '<div class="linha"><span>Quantidade</span><span>' + String(r.quantidade).replace('.', ',') + '</span></div>' +
+    '<div class="linha"><span>Valor</span><span>' + formatarValor(r.valor) + '</span></div>' +
+    (r.emergencias > 0 ? '<div class="linha"><span>Emergências</span><span>' + r.emergencias + '</span></div>' : '');
+  document.getElementById('aprovar-cracha').value = '';
+  document.getElementById('aprovar-erro').textContent = '';
+  document.getElementById('overlay-aprovar-mes').classList.add('active');
+}
+function fecharModalAprovarMes(){
+  document.getElementById('overlay-aprovar-mes').classList.remove('active');
+}
+async function confirmarAprovarMes(){
+  const erroEl = document.getElementById('aprovar-erro');
+  erroEl.textContent = '';
+  const conf = document.getElementById('aprovar-cracha').value.trim();
+  if(!conf){ erroEl.textContent = 'Digite seu crachá para confirmar'; return; }
+  const { ano, mes } = mesSelecionado();
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'aprovarMes', cracha:sessao.cracha, crachaConfirmacao:conf, ano, mes });
+    if(!r.ok){ erroEl.textContent = r.erro || 'Não foi possível aprovar.'; loading(false); return; }
+    fecharModalAprovarMes();
+    await carregarFechamentoMes();
+  }catch(err){
+    erroEl.textContent = 'Sem conexão. Tente novamente.';
+  }
+  loading(false);
+}
+
+function abrirModalContestarMes(){
+  document.getElementById('contestar-texto').value = '';
+  document.getElementById('contestar-erro').textContent = '';
+  document.getElementById('overlay-contestar-mes').classList.add('active');
+}
+function fecharModalContestarMes(){
+  document.getElementById('overlay-contestar-mes').classList.remove('active');
+}
+async function confirmarContestarMes(){
+  const erroEl = document.getElementById('contestar-erro');
+  erroEl.textContent = '';
+  const comentario = document.getElementById('contestar-texto').value.trim();
+  if(comentario.length < 5){ erroEl.textContent = 'Descreva o que está errado'; return; }
+  const { ano, mes } = mesSelecionado();
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'contestarMes', cracha:sessao.cracha, ano, mes, comentario });
+    if(!r.ok){ erroEl.textContent = r.erro || 'Não foi possível enviar.'; loading(false); return; }
+    fecharModalContestarMes();
+    await carregarFechamentoMes();
+  }catch(err){
+    erroEl.textContent = 'Sem conexão. Tente novamente.';
+  }
+  loading(false);
 }
 
 // ---------- tenta login automático assim que a página carrega ----------
