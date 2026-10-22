@@ -194,14 +194,24 @@
   .lista-operadores{display:flex;flex-direction:column;gap:10px;}
   .card-operador{
     background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;
-    padding:14px 18px;display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;
   }
   .card-operador .nome{font-weight:700;font-size:14px;}
+  .card-operador .nome-linha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .card-operador .detalhe{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:3px;}
   .card-operador .qtd-badge{
     font-family:var(--font-mono);font-size:11px;background:var(--bg-elev);
     border:1px solid var(--border);padding:6px 12px;border-radius:20px;
   }
+
+  /* ---------- ETIQUETAS DE STATUS (fechamento mensal / RNC) ---------- */
+  .badge-st{
+    font-family:var(--font-mono);font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:20px;
+    border:1px solid var(--border);color:var(--text-dim);white-space:nowrap;text-transform:uppercase;
+  }
+  .badge-st.ok{border-color:var(--green);color:var(--green);}
+  .badge-st.atencao{border-color:var(--amber);color:var(--amber);}
+  .badge-st.erro{border-color:var(--red);color:#ff8a80;}
 
   /* ---------- MODAL ---------- */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;padding:20px;z-index:10;}
@@ -213,6 +223,7 @@
   .modal-acoes button{flex:1;padding:14px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:14px;}
   .btn-cancelar{background:none;border:1px solid var(--border);color:var(--text-dim);}
   .btn-confirmar{background:var(--red);border:none;color:#fff;}
+  .btn-confirmar.verde{background:var(--green);}
 
   /* ---------- MAPA ---------- */
   .legenda-mapa{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap;}
@@ -278,6 +289,29 @@
   .acoes-aprov button{flex:1;padding:11px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:13px;}
   .btn-aprovar-item{background:var(--green);border:none;color:#fff;}
   .btn-reprovar-item{background:var(--bg-elev);border:1px solid var(--red-dim);color:#ec8a80;}
+
+  /* ---------- RNC ---------- */
+  .card-rnc{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px;}
+  .card-rnc .rnc-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  .card-rnc .rnc-titulo{font-family:var(--font-display);font-size:18px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .card-rnc .rnc-sub{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+  .rnc-tabela{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;margin-bottom:12px;}
+  .rnc-tabela th{padding:6px 8px;text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap;}
+  .rnc-tabela td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .rnc-tabela input{
+    width:110px;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-mono);font-size:13px;padding:7px 8px;border-radius:6px;outline:none;
+  }
+  .rnc-tabela input:focus{border-color:var(--amber);}
+  .rnc-acoes{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .rnc-acoes button{padding:10px 14px;border-radius:8px;font-family:var(--font-body);font-weight:700;font-size:12px;cursor:pointer;}
+  .rnc-parecer{
+    width:100%;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-body);font-size:13px;padding:10px 12px;border-radius:8px;outline:none;
+    resize:none;min-height:54px;margin-bottom:12px;
+  }
+  .rnc-parecer:focus{border-color:var(--amber);}
+  .rnc-obs{font-size:13px;color:var(--text-dim);background:var(--bg-elev);border-radius:8px;padding:9px 12px;margin-bottom:12px;line-height:1.4;}
 </style>
 </head>
 <body>
@@ -289,7 +323,7 @@
       <div class="sub">Painel Admin</div>
     </div>
     <div class="header-direita" id="header-admin" style="display:none;">
-      <div class="op-tag"><b id="header-nome-admin"></b>Painel Administrativo</div>
+      <div class="op-tag"><b id="header-nome-admin"></b><span id="header-perfil">Painel Administrativo</span></div>
       <button class="logout-btn" onclick="sair()">SAIR</button>
     </div>
   </header>
@@ -319,6 +353,7 @@
         <button class="tab-btn" id="tab-historico" onclick="mudarAba('historico')" style="display:none;">HISTÓRICO</button>
         <button class="tab-btn" id="tab-previsto" onclick="mudarAba('previsto')" style="display:none;">PREVISTO × REAL</button>
         <button class="tab-btn" id="tab-conferencia" onclick="mudarAba('conferencia')" style="display:none;">CONFERÊNCIA</button>
+        <button class="tab-btn" id="tab-rncs" onclick="mudarAba('rncs')" style="display:none;">RNCs</button>
       </div>
 
       <div class="conteudo">
@@ -383,9 +418,22 @@
           <div class="filtros">
             <input type="month" id="f-mes-consolidado" style="background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:13px;padding:10px 14px;border-radius:8px;">
             <button class="btn-atualizar" style="margin-left:0;" onclick="carregarConsolidado()">GERAR</button>
+            <select id="f-status-consolidado" onchange="renderConsolidado()">
+              <option value="">Todos os status</option>
+              <option value="AGUARDANDO">⏳ Aguardando aprovação do operador</option>
+              <option value="CONTESTADO">⚠ Contestado</option>
+              <option value="APROVADO_OPERADOR">✔ Aprovado pelo operador</option>
+              <option value="LIBERADO_ADMIN">Liberado sem aprovação</option>
+              <option value="CONFERIDO">✔✔ Conferido pela empresa</option>
+            </select>
             <button class="btn-atualizar" onclick="baixarConsolidadoExcel()">⬇ BAIXAR EXCEL</button>
             <span class="contagem" id="contagem-consolidado"></span>
           </div>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Fluxo do mês: o operador aprova o relatório dele (ou contesta) → você confere → pagamento. Clique no operador para ver o relatório e agir:
+            <b>conferir</b> (só depois da aprovação do operador), <b>liberar sem aprovação</b> (com motivo) ou marcar uma <b>contestação como resolvida</b>.
+            Se algo mudar depois da aprovação (emergência, RNC fechada…), o operador precisa aprovar de novo.
+          </p>
           <div id="lista-consolidado"></div>
         </div>
 
@@ -452,6 +500,24 @@
           <div style="overflow-x:auto;"><table class="tab-dados" id="tabela-conferencia"></table></div>
         </div>
 
+        <!-- ABA RNCs (gestão e engenharia) -->
+        <div id="aba-rncs" style="display:none;">
+          <div class="filtros">
+            <select id="rnc-filtro-status" onchange="renderRncs()">
+              <option value="">Todos os status</option>
+              <option value="ABERTA">Aberta (operadores apontando)</option>
+              <option value="ENVIADA">Enviada à engenharia</option>
+              <option value="RETORNO">Retorno recebido</option>
+              <option value="FECHADA">Fechada</option>
+            </select>
+            <input type="text" id="rnc-filtro-num" placeholder="Nº da RNC" oninput="renderRncs()">
+            <span class="contagem" id="contagem-rncs"></span>
+            <button class="btn-atualizar" onclick="carregarRncs()">↻ ATUALIZAR</button>
+          </div>
+          <p id="rnc-ajuda" style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;"></p>
+          <div id="lista-rncs"></div>
+        </div>
+
       </div>
     </section>
 
@@ -516,7 +582,7 @@
     </div>
     <div class="campo-edicao" id="e-campo-categoria" style="display:none;">
       <label>Categoria (obrigatória no AE-1301)</label>
-      <select id="e-categoria">
+      <select id="e-categoria" onchange="atualizarCamposEditar1301()">
         <option value="">Selecione...</option>
         <option value="RNC">RNC</option>
         <option value="Manutenção">Manutenção</option>
@@ -524,6 +590,10 @@
         <option value="Serviço não previsto">Serviço não previsto</option>
         <option value="Horas Excedidas">Horas Excedidas</option>
       </select>
+    </div>
+    <div class="campo-edicao" id="e-campo-rnc" style="display:none;">
+      <label>Nº da RNC (obrigatório na categoria RNC)</label>
+      <input type="text" id="e-rnc" autocomplete="off">
     </div>
     <div class="campo-edicao">
       <label id="e-label-obs">Descrição</label>
@@ -537,22 +607,45 @@
   </div>
 </div>
 
-<!-- MODAL ESCOLHA (consolidado -> operador) -->
+<!-- MODAL ESCOLHA (consolidado -> operador): situação do mês + ações de conferência -->
 <div class="overlay" id="overlay-escolha-op">
-  <div class="modal">
+  <div class="modal" style="max-width:380px;max-height:92vh;overflow:auto;">
     <h3 id="escolha-nome">OPERADOR</h3>
+    <div id="fech-info" style="margin-bottom:14px;"></div>
+    <div class="modal-acoes" style="flex-direction:column;margin-bottom:14px;">
+      <button class="btn-confirmar verde" id="btn-fech-conferir" onclick="fechamentoConferirAcao()" style="display:none;">✔ CONFERIDO — LIBERAR PARA PAGAMENTO</button>
+      <button class="btn-confirmar" id="btn-fech-liberar" onclick="abrirModalLiberar()" style="display:none;background:var(--bg-elev);border:1px solid var(--amber-dim);color:var(--amber);">LIBERAR SEM APROVAÇÃO DO OPERADOR</button>
+      <button class="btn-confirmar" id="btn-fech-resolver" onclick="fechamentoResolverAcao()" style="display:none;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);">MARCAR CONTESTAÇÃO COMO RESOLVIDA</button>
+    </div>
     <p>O que você quer ver?</p>
     <div class="modal-acoes" style="flex-direction:column;">
       <button class="btn-confirmar" onclick="escolherPlanilha()">PLANILHA DE PAGAMENTO</button>
       <button class="btn-confirmar" style="background:var(--bg-elev);border:1px solid var(--amber-dim);color:var(--amber);" onclick="escolherDetalhado()">RELATÓRIO DETALHADO</button>
-      <button class="btn-cancelar" onclick="fecharEscolhaOp()">CANCELAR</button>
+      <button class="btn-cancelar" onclick="fecharEscolhaOp()">FECHAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LIBERAR SEM APROVAÇÃO DO OPERADOR -->
+<div class="overlay" id="overlay-liberar">
+  <div class="modal">
+    <h3>Liberar sem aprovação do operador</h3>
+    <p>O relatório deste mês vai para a conferência mesmo sem o operador ter aprovado. O motivo fica registrado com o seu nome e a data.</p>
+    <div class="campo-edicao">
+      <label>Motivo (obrigatório)</label>
+      <textarea id="liberar-motivo" style="min-height:80px;"></textarea>
+    </div>
+    <div id="liberar-erro" style="color:var(--red);font-family:var(--font-mono);font-size:11px;min-height:14px;margin-bottom:10px;"></div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalLiberar()">CANCELAR</button>
+      <button class="btn-confirmar" onclick="confirmarLiberar()">LIBERAR</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL PLANILHA DE PAGAMENTO DO OPERADOR -->
 <div class="overlay" id="overlay-rel-operador">
-  <div class="modal" style="max-width:900px;max-height:90vh;overflow:auto;">
+  <div class="modal" style="max-width:1000px;max-height:90vh;overflow:auto;">
     <h3 id="rel-op-titulo">RELATÓRIO</h3>
     <p id="rel-op-sub"></p>
     <div style="overflow-x:auto;">
@@ -565,6 +658,7 @@
             <th style="padding:8px;border-bottom:1px solid var(--border);">OP</th>
             <th style="padding:8px;border-bottom:1px solid var(--border);">OBSERVAÇÃO</th>
             <th style="padding:8px;border-bottom:1px solid var(--border);">EMERGÊNCIA</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);">RNC / VALOR</th>
           </tr>
         </thead>
         <tbody id="rel-op-corpo"></tbody>
@@ -706,9 +800,10 @@ const MAPA_POSICOES = {
 };
 
 // ---------- estado ----------
-let admin = null; // { usuario, nome, setor }
+let admin = null; // { usuario, nome, setor, perfil, token }   perfil: gestao | engenharia | basico
 let todosAtivos = [];
 let timerInterval = null;
+let syncAdminInterval = null;
 let encerrarIdAtual = null;
 let pendentesAprovacao = [];
 
@@ -716,16 +811,27 @@ let pendentesAprovacao = [];
 function loading(mostrar){
   document.getElementById('loading').classList.toggle('active', mostrar);
 }
+// Em toda chamada POST vai junto o token da sessão (exigido nas ações de RNC e fechamento).
 async function chamarAPI(params, method, body){
   const url = APPS_SCRIPT_URL + (params ? '?' + params : '');
+  if(method === 'POST' && admin && admin.token) body = Object.assign({ token: admin.token }, body);
   const opts = method === 'POST' ? { method:'POST', body: JSON.stringify(body) } : {};
   const resp = await fetch(url, opts);
-  return await resp.json();
+  const r = await resp.json();
+  if(r && r.sessaoExpirada && admin){
+    sair();
+    document.getElementById('login-erro').textContent = 'Sua sessão expirou. Entre de novo.';
+  }
+  return r;
 }
 function escaparHtml(v){
   const d = document.createElement('div');
   d.textContent = v == null ? '' : String(v);
   return d.innerHTML;
+}
+// mesmo padrão do servidor: maiúsculas, sem espaços, sem zeros à esquerda
+function normRncCliente(v){
+  return String(v == null ? '' : v).trim().toUpperCase().replace(/\s+/g, '').replace(/^0+(?=.)/, '');
 }
 function formatarHora(valor){
   if(!valor) return '—';
@@ -744,7 +850,20 @@ function formatarDuracao(min){
   return h === 0 ? (m + ' min') : (h + 'h ' + m + 'min');
 }
 
-// ---------- login ----------
+// ---------- login / perfis ----------
+// gestao = Setor Usinagem/Solda/Todos (todas as abas) · engenharia = só a aba RNCs · basico = sem setor
+function aplicarPerfil(){
+  const p = admin ? admin.perfil : 'basico';
+  const gestao = p === 'gestao' ? 'inline-block' : 'none';
+  ['aprovacoes','consolidado','historico','previsto','conferencia','rncs'].forEach(n => {
+    document.getElementById('tab-' + n).style.display = gestao;
+  });
+  const basicas = p === 'engenharia' ? 'none' : 'inline-block';
+  ['operacoes','operadores','mapa'].forEach(n => {
+    document.getElementById('tab-' + n).style.display = basicas;
+  });
+  if(p === 'engenharia') document.getElementById('tab-rncs').style.display = 'inline-block';
+}
 async function entrarAdmin(){
   const erroEl = document.getElementById('login-erro');
   erroEl.textContent = '';
@@ -755,22 +874,27 @@ async function entrarAdmin(){
   try{
     const r = await chamarAPI(null, 'POST', { action:'loginAdmin', usuario, senha });
     if(!r.ok){ erroEl.textContent = r.erro || 'Usuário ou senha inválidos'; loading(false); return; }
-    admin = { usuario, nome: r.nome, setor: r.setor || '' };
+    const setor = r.setor || '';
+    admin = {
+      usuario, nome: r.nome, setor,
+      perfil: r.perfil || (setor ? 'gestao' : 'basico'),
+      token: r.token || ''
+    };
     document.getElementById('header-nome-admin').textContent = r.nome;
+    document.getElementById('header-perfil').textContent = admin.perfil === 'engenharia' ? 'Engenharia — RNCs' : 'Painel Administrativo';
     document.getElementById('header-admin').style.display = 'flex';
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('tela-painel').classList.add('active');
-    const mostrar = admin.setor ? 'inline-block' : 'none';
-    document.getElementById('tab-aprovacoes').style.display = mostrar;
-    document.getElementById('tab-consolidado').style.display = mostrar;
-    document.getElementById('tab-historico').style.display = mostrar;
-    document.getElementById('tab-previsto').style.display = mostrar;
-    document.getElementById('tab-conferencia').style.display = mostrar;
-    todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
-    popularFiltroOperadores();
-    renderizarOperacoes();
-    timerInterval = setInterval(atualizarCronometros, 1000);
-    syncAdminInterval = setInterval(sincronizarAtivosSilencioso, 30000);
+    aplicarPerfil();
+    if(admin.perfil === 'engenharia'){
+      mudarAba('rncs');
+    } else {
+      todosAtivos = Array.isArray(r.ativos) ? r.ativos : [];
+      popularFiltroOperadores();
+      renderizarOperacoes();
+      timerInterval = setInterval(atualizarCronometros, 1000);
+      syncAdminInterval = setInterval(sincronizarAtivosSilencioso, 30000);
+    }
   }catch(err){
     erroEl.textContent = 'Erro de conexão. Tente novamente.';
   }
@@ -786,11 +910,8 @@ function sair(){
   document.getElementById('f-senha').value = '';
   document.getElementById('login-erro').textContent = '';
   document.getElementById('header-admin').style.display = 'none';
-  document.getElementById('tab-aprovacoes').style.display = 'none';
-  document.getElementById('tab-consolidado').style.display = 'none';
-  document.getElementById('tab-historico').style.display = 'none';
-  document.getElementById('tab-previsto').style.display = 'none';
-  document.getElementById('tab-conferencia').style.display = 'none';
+  aplicarPerfil();               // sem sessão: esconde as abas de gestão/RNC e mostra as básicas
+  mudarAba('operacoes');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tela-login').classList.add('active');
 }
@@ -801,10 +922,11 @@ function primeiroDiaDoMes(){
   return hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-01';
 }
 function mudarAba(nome){
-  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico','previsto','conferencia'].forEach(n => {
+  ['operacoes','operadores','mapa','aprovacoes','consolidado','historico','previsto','conferencia','rncs'].forEach(n => {
     document.getElementById('tab-' + n).classList.toggle('active', nome === n);
     document.getElementById('aba-' + n).style.display = nome === n ? 'block' : 'none';
   });
+  if(!admin) return;
   if(nome==='operadores') renderizarOperadores();
   if(nome==='mapa') renderizarMapa();
   if(nome==='aprovacoes') mudarSubAbaAprov('pendentes');
@@ -821,6 +943,7 @@ function mudarAba(nome){
   if(nome==='conferencia' && !document.getElementById('c-de').value){
     document.getElementById('c-de').value = primeiroDiaDoMes();
   }
+  if(nome==='rncs') carregarRncs();
 }
 
 // ---------- carregar dados ----------
@@ -848,9 +971,8 @@ function popularFiltroOperadores(){
 }
 
 // ---------- atualização automática (a cada 30s, sem tela de loading) ----------
-let syncAdminInterval = null;
 async function sincronizarAtivosSilencioso(){
-  if(!admin) return;
+  if(!admin || admin.perfil === 'engenharia') return;
   try{
     const r = await chamarAPI('action=ativosTodos');
     if(!r.ok || !Array.isArray(r.dados)) return;
@@ -900,6 +1022,7 @@ function renderizarOperacoes(){
 }
 function cardOperacao(a){
   const nomeCentro = nomeDoCentro(a.centro);
+  const gestao = admin && admin.perfil === 'gestao';
   return `
     <div class="card-op" data-id="${a.id}" id="card-${a.id}">
       <div class="topo">
@@ -912,11 +1035,12 @@ function cardOperacao(a){
       <div class="linha pj"><span>PJ</span><span>${escaparHtml(a.pj)}</span></div>
       <div class="linha"><span>Centro</span><span title="${nomeCentro?escaparHtml(nomeCentro):''}">${escaparHtml(a.centro)}${nomeCentro ? ' — '+escaparHtml(nomeCentro) : ''}</span></div>
       ${a.categoria ? '<div class="linha"><span>Categoria</span><span>' + escaparHtml(a.categoria) + '</span></div>' : ''}
+      ${a.rncNumero ? '<div class="linha"><span>RNC</span><span>' + escaparHtml(a.rncNumero) + '</span></div>' : ''}
       ${a.emergencia ? '<div class="linha"><span>Emergência</span><span style="color:var(--amber);">Aprovada +30%</span></div>' : ''}
       ${a.observacao ? '<div class="linha descricao"><span>Descrição</span><span>' + escaparHtml(a.observacao) + '</span></div>' : ''}
       <div class="aviso-excedido" id="excedido-${a.id}" style="display:none;">⚠ Essa ordem excedeu o tempo previsto</div>
       <div class="acoes-card">
-        ${admin && admin.setor ? '<button class="btn-editar" style="flex-basis:100%;' + (a.emergencia ? 'border-color:var(--amber);color:var(--amber);' : '') + '" onclick="alternarEmergencia(\'' + a.id + '\')">' + (a.emergencia ? '🚨 EMERGÊNCIA APROVADA — REMOVER' : '🚨 MARCAR EMERGÊNCIA (+30%)') + '</button>' : ''}
+        ${gestao ? '<button class="btn-editar" style="flex-basis:100%;' + (a.emergencia ? 'border-color:var(--amber);color:var(--amber);' : '') + '" onclick="alternarEmergencia(\'' + a.id + '\')">' + (a.emergencia ? '🚨 EMERGÊNCIA APROVADA — REMOVER' : '🚨 MARCAR EMERGÊNCIA (+30%)') + '</button>' : ''}
         <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausa('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
         <button class="btn-editar" onclick="abrirModalEditar('${a.id}')">EDITAR</button>
         <button class="btn-encerrar" onclick="abrirModalEncerrar('${a.id}','${escaparHtml(a.nome)}','${escaparHtml(a.ordem)}')">ENCERRAR</button>
@@ -1152,6 +1276,7 @@ function abrirModalEditar(id){
   document.getElementById('e-pj-numero').value = idx > -1 ? pj.substring(idx + 1) : pj;
   document.getElementById('e-centro').value = String(a.centro || '').trim();
   document.getElementById('e-categoria').value = a.categoria || '';
+  document.getElementById('e-rnc').value = a.rncNumero || '';
   document.getElementById('e-obs').value = a.observacao || '';
   document.getElementById('editar-erro').textContent = '';
   atualizarCamposEditar1301();
@@ -1168,6 +1293,7 @@ function editandoPj1301(){
 function atualizarCamposEditar1301(){
   const eh1301 = editandoPj1301();
   document.getElementById('e-campo-categoria').style.display = eh1301 ? 'block' : 'none';
+  document.getElementById('e-campo-rnc').style.display = (eh1301 && document.getElementById('e-categoria').value === 'RNC') ? 'block' : 'none';
   document.getElementById('e-label-obs').textContent = eh1301 ? 'Descrição do serviço (obrigatória no AE-1301)' : 'Descrição';
 }
 async function salvarEdicao(){
@@ -1181,24 +1307,27 @@ async function salvarEdicao(){
   const centro = document.getElementById('e-centro').value.trim();
   const eh1301 = editandoPj1301();
   const categoria = eh1301 ? document.getElementById('e-categoria').value : '';
+  const rncNumero = (eh1301 && categoria === 'RNC') ? normRncCliente(document.getElementById('e-rnc').value) : '';
   const observacao = document.getElementById('e-obs').value.trim();
 
   if(!ordem || !op || !pjNumero || !centro){ erroEl.textContent = 'Preencha Ordem, Operação, PJ e Centro'; return; }
   if(!CENTROS[centro]){ erroEl.textContent = 'Centro de Trabalho inválido — use um código da lista'; return; }
   if(eh1301 && !categoria){ erroEl.textContent = 'Selecione a categoria (obrigatória no AE-1301)'; return; }
+  if(eh1301 && categoria === 'RNC' && !rncNumero){ erroEl.textContent = 'Informe o Nº da RNC'; return; }
   if(eh1301 && !observacao){ erroEl.textContent = 'A descrição é obrigatória no AE-1301'; return; }
 
   loading(true);
   try{
     const r = await chamarAPI(null, 'POST', {
       action:'editarApontamento', id: editarIdAtual,
-      ordem, op, pjTipo, pjNumero, centro, categoria, observacao
+      ordem, op, pjTipo, pjNumero, centro, categoria, rncNumero, observacao
     });
     if(!r.ok){ erroEl.textContent = r.erro || 'Não foi possível salvar.'; loading(false); return; }
     const a = todosAtivos.find(x => x.id === editarIdAtual);
     if(a){
       a.ordem = ordem; a.op = op; a.pj = pjTipo + '-' + pjNumero; a.centro = centro;
-      a.categoria = categoria; a.observacao = r.observacao != null ? r.observacao : observacao;
+      a.categoria = categoria; a.rncNumero = (r.rncNumero != null ? r.rncNumero : rncNumero);
+      a.observacao = r.observacao != null ? r.observacao : observacao;
       a.tempoPrevistoHoras = (r.tempoPrevistoHoras !== undefined) ? r.tempoPrevistoHoras : a.tempoPrevistoHoras;
     }
     fecharModalEditar();
@@ -1212,9 +1341,9 @@ async function salvarEdicao(){
   loading(false);
 }
 
-// ---------- APROVAÇÕES ----------
+// ---------- APROVAÇÕES (AE-1301 comum; as RNCs seguem o fluxo da aba RNCs) ----------
 async function carregarPendentes(){
-  if(!admin || !admin.setor) return;
+  if(!admin || admin.perfil !== 'gestao') return;
   const container = document.getElementById('lista-pendentes');
   container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
   loading(true);
@@ -1301,7 +1430,7 @@ async function mudarSubAbaAprov(sub){
   else await carregarDecididos();
 }
 async function carregarDecididos(){
-  if(!admin || !admin.setor) return;
+  if(!admin || admin.perfil !== 'gestao') return;
   const container = document.getElementById('lista-decididos');
   container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
   loading(true);
@@ -1336,82 +1465,9 @@ async function carregarDecididos(){
   }
   loading(false);
 }
-
-// ---------- CONSOLIDADO (painel de pagamento) ----------
-let ultimoConsolidado = [];
-async function carregarConsolidado(){
-  const valor = document.getElementById('f-mes-consolidado').value;
-  if(!valor) return;
-  const [anoStr, mesStr] = valor.split('-');
-  const container = document.getElementById('lista-consolidado');
-  container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
-  loading(true);
-  try{
-    const r = await chamarAPI(null, 'POST', { action:'relatorioConsolidado', ano:Number(anoStr), mes:Number(mesStr), setor: admin.setor });
-    if(!r.ok){
-      container.innerHTML = '<div class="vazio-geral"><p>' + escaparHtml(r.erro || 'Erro ao carregar') + '</p></div>';
-      loading(false);
-      return;
-    }
-    ultimoConsolidado = r.operadores || [];
-    document.getElementById('contagem-consolidado').textContent = ultimoConsolidado.length + ' operador(es)';
-    if(ultimoConsolidado.length === 0){
-      container.innerHTML = '<div class="vazio-geral"><p>Nenhum apontamento nesse mês</p></div>';
-    } else {
-      const totalGeral = ultimoConsolidado.reduce((s,o) => s + o.valorTotal, 0);
-      container.innerHTML = `
-        <div class="card-resumo-consolidado" style="background:var(--bg-panel);border:1px solid var(--amber-dim);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;">
-          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;">Total geral do mês</span>
-          <span style="font-family:var(--font-mono);font-weight:700;color:var(--amber);">R$ ${totalGeral.toFixed(2).replace('.',',')}</span>
-        </div>
-      ` + ultimoConsolidado.map((o,i) => `
-        <div class="card-operador" style="margin-bottom:10px;cursor:pointer;" onclick="abrirEscolhaOperador(${i})">
-          <div>
-            <div class="nome">${escaparHtml(o.nome)}${o.temManual ? ' <span style="font-family:var(--font-mono);font-size:10px;color:var(--amber);">(tem AE-1301 manual)</span>' : ''}</div>
-            <div class="detalhe">${o.apontamentos} apontamento(s) · qtd. total ${String(o.quantidadeTotal).replace('.',',')}</div>
-          </div>
-          <div class="qtd-badge" style="color:var(--amber);font-weight:700;">R$ ${o.valorTotal.toFixed(2).replace('.',',')}</div>
-        </div>
-      `).join('');
-    }
-  }catch(err){
-    container.innerHTML = '<div class="vazio-geral"><p>Não foi possível conectar. Tente novamente.</p></div>';
-  }
-  loading(false);
-}
-function baixarConsolidadoExcel(){
-  if(!ultimoConsolidado || ultimoConsolidado.length === 0){ alert('Gere o consolidado primeiro.'); return; }
-  if(typeof XLSX === 'undefined'){ alert('Biblioteca de Excel ainda carregando, tente de novo em instantes.'); return; }
-  const linhas = ultimoConsolidado.map(o => ({
-    'Operador': o.nome,
-    'Crachá': o.cracha,
-    'Apontamentos': o.apontamentos,
-    'Quantidade total': o.quantidadeTotal,
-    'Valor total (R$)': o.valorTotal,
-    'Tem AE-1301 manual': o.temManual ? 'Sim' : 'Não'
-  }));
-  const ws = XLSX.utils.json_to_sheet(linhas);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
-  const mesValor = document.getElementById('f-mes-consolidado').value;
-  XLSX.writeFile(wb, 'consolidado_' + mesValor + '.xlsx');
-}
-
-// ---------- CONSOLIDADO: escolha ao clicar no operador ----------
-let opSel = null;
-function abrirEscolhaOperador(i){
-  const o = ultimoConsolidado[i];
-  if(!o) return;
-  opSel = { cracha:o.cracha, nome:o.nome };
-  document.getElementById('escolha-nome').textContent = o.nome.toUpperCase();
-  document.getElementById('overlay-escolha-op').classList.add('active');
-}
-function fecharEscolhaOp(){ document.getElementById('overlay-escolha-op').classList.remove('active'); }
-function escolherPlanilha(){ fecharEscolhaOp(); abrirRelatorioOperador(opSel.cracha, opSel.nome); }
-function escolherDetalhado(){ fecharEscolhaOp(); abrirRelatorioDetalhado(opSel.cracha, opSel.nome); }
-
 // ---------- helpers de tabela / formatação ----------
 function fmtData(v){ if(!v) return '—'; const d=new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('pt-BR'); }
+function fmtDataHora(v){ if(!v) return '—'; const d=new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleString('pt-BR'); }
 function fmtValor(v){ return (v==null || isNaN(Number(v))) ? '—' : 'R$ ' + Number(v).toFixed(2).replace('.',','); }
 function numBr(v){ return String(Math.round(Number(v) * 100) / 100).replace('.', ','); }
 function porDiaTexto(p){
@@ -1433,16 +1489,199 @@ function baixarExcelGenerico(linhas, aba, arquivo){
   XLSX.writeFile(wb, arquivo + '.xlsx');
 }
 
+// ---------- CONSOLIDADO (painel de pagamento + fechamento mensal) ----------
+const ST_FECH = {
+  AGUARDANDO: ['⏳ Aguardando aprovação do operador', 'atencao'],
+  CONTESTADO: ['⚠ Contestado', 'erro'],
+  APROVADO_OPERADOR: ['✔ Aprovado pelo operador', 'ok'],
+  LIBERADO_ADMIN: ['Liberado sem aprovação do operador', 'atencao'],
+  CONFERIDO: ['✔✔ Conferido pela empresa', 'ok']
+};
+let ultimoConsolidado = [];
+function mesConsolidado(){
+  const [anoStr, mesStr] = document.getElementById('f-mes-consolidado').value.split('-');
+  return { ano: Number(anoStr), mes: Number(mesStr) };
+}
+async function carregarConsolidado(){
+  const valor = document.getElementById('f-mes-consolidado').value;
+  if(!valor) return;
+  const { ano, mes } = mesConsolidado();
+  const container = document.getElementById('lista-consolidado');
+  container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'relatorioConsolidado', ano, mes, setor: admin.setor });
+    if(!r.ok){
+      container.innerHTML = '<div class="vazio-geral"><p>' + escaparHtml(r.erro || 'Erro ao carregar') + '</p></div>';
+      loading(false);
+      return;
+    }
+    ultimoConsolidado = r.operadores || [];
+    renderConsolidado();
+  }catch(err){
+    container.innerHTML = '<div class="vazio-geral"><p>Não foi possível conectar. Tente novamente.</p></div>';
+  }
+  loading(false);
+}
+function renderConsolidado(){
+  const container = document.getElementById('lista-consolidado');
+  const filtro = document.getElementById('f-status-consolidado').value;
+  const itens = ultimoConsolidado.map((o, i) => ({ o: o, i: i }))
+    .filter(x => !filtro || ((x.o.fechamento || {}).status || 'AGUARDANDO') === filtro);
+  document.getElementById('contagem-consolidado').textContent =
+    itens.length + ' operador(es)' + (filtro ? ' (filtrado)' : '');
+  if(ultimoConsolidado.length === 0){
+    container.innerHTML = '<div class="vazio-geral"><p>Nenhum apontamento nesse mês</p></div>';
+    return;
+  }
+  if(itens.length === 0){
+    container.innerHTML = '<div class="vazio-geral"><p>Nenhum operador com esse status</p></div>';
+    return;
+  }
+  const totalGeral = itens.reduce((s, x) => s + x.o.valorTotal, 0);
+  container.innerHTML = `
+    <div class="card-resumo-consolidado" style="background:var(--bg-panel);border:1px solid var(--amber-dim);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;">
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;">Total do mês${filtro ? ' (filtro aplicado)' : ''}</span>
+      <span style="font-family:var(--font-mono);font-weight:700;color:var(--amber);">R$ ${totalGeral.toFixed(2).replace('.',',')}</span>
+    </div>
+  ` + itens.map(x => {
+    const o = x.o;
+    const f = o.fechamento || { status: 'AGUARDANDO' };
+    const def = ST_FECH[f.status] || ST_FECH.AGUARDANDO;
+    return `
+      <div class="card-operador" style="margin-bottom:10px;cursor:pointer;" onclick="abrirEscolhaOperador(${x.i})">
+        <div>
+          <div class="nome-linha">
+            <span class="nome">${escaparHtml(o.nome)}</span>
+            <span class="badge-st ${def[1]}">${def[0]}</span>
+            ${f.alterado ? '<span class="badge-st erro">alterado após aprovação</span>' : ''}
+          </div>
+          <div class="detalhe">${o.apontamentos} apontamento(s) · qtd. total ${String(o.quantidadeTotal).replace('.',',')}${o.temManual ? ' · tem AE-1301 manual' : ''}${o.temRncPendente ? ' · RNC aguardando engenharia' : ''}</div>
+        </div>
+        <div class="qtd-badge" style="color:var(--amber);font-weight:700;">R$ ${o.valorTotal.toFixed(2).replace('.',',')}</div>
+      </div>
+    `;
+  }).join('');
+}
+function baixarConsolidadoExcel(){
+  if(!ultimoConsolidado || ultimoConsolidado.length === 0){ alert('Gere o consolidado primeiro.'); return; }
+  const linhas = ultimoConsolidado.map(o => ({
+    'Operador': o.nome,
+    'Crachá': o.cracha,
+    'Situação do mês': ((ST_FECH[(o.fechamento || {}).status] || ST_FECH.AGUARDANDO)[0]),
+    'Apontamentos': o.apontamentos,
+    'Quantidade total': o.quantidadeTotal,
+    'Valor total (R$)': o.valorTotal,
+    'Tem AE-1301 manual': o.temManual ? 'Sim' : 'Não',
+    'RNC aguardando engenharia': o.temRncPendente ? 'Sim' : 'Não'
+  }));
+  baixarExcelGenerico(linhas, 'Consolidado', 'consolidado_' + document.getElementById('f-mes-consolidado').value);
+}
+
+// ---------- CONSOLIDADO: situação do mês do operador + ações de conferência ----------
+let opSel = null;
+function htmlFechInfo(f){
+  const def = ST_FECH[f.status] || ST_FECH.AGUARDANDO;
+  let h = '<span class="badge-st ' + def[1] + '">' + def[0] + '</span>';
+  if(f.alterado){
+    h += '<div class="rnc-obs" style="margin-top:10px;">⚠ O relatório mudou depois da última aprovação/conferência' +
+      (f.status === 'AGUARDANDO' ? ': o operador precisa aprovar de novo.' : '.') + '</div>';
+  }
+  if(f.status === 'CONTESTADO' && f.comentario){
+    h += '<div class="rnc-obs" style="margin-top:10px;"><b>Contestação do operador:</b> ' + escaparHtml(f.comentario) + '</div>';
+  }
+  if(f.status === 'APROVADO_OPERADOR' && f.operadorEm){
+    h += '<div class="rnc-obs" style="margin-top:10px;">Aprovado pelo operador em ' + fmtDataHora(f.operadorEm) + '.</div>';
+  }
+  if(f.status === 'LIBERADO_ADMIN'){
+    h += '<div class="rnc-obs" style="margin-top:10px;">Liberado por <b>' + escaparHtml(f.liberadoPor || '—') + '</b>. Motivo: ' + escaparHtml(f.motivo || '—') + '</div>';
+  }
+  if(f.status === 'CONFERIDO'){
+    h += '<div class="rnc-obs" style="margin-top:10px;">Conferido por <b>' + escaparHtml(f.conferidoPor || '—') + '</b> em ' + fmtDataHora(f.conferidoEm) + '.</div>';
+  }
+  return h;
+}
+function renderEscolha(o){
+  const f = o.fechamento || { status: 'AGUARDANDO' };
+  document.getElementById('escolha-nome').textContent = o.nome.toUpperCase();
+  document.getElementById('fech-info').innerHTML = htmlFechInfo(f);
+  const gestao = admin && admin.perfil === 'gestao';
+  document.getElementById('btn-fech-conferir').style.display = (gestao && (f.status === 'APROVADO_OPERADOR' || f.status === 'LIBERADO_ADMIN')) ? 'block' : 'none';
+  document.getElementById('btn-fech-liberar').style.display = (gestao && f.status === 'AGUARDANDO') ? 'block' : 'none';
+  document.getElementById('btn-fech-resolver').style.display = (gestao && f.status === 'CONTESTADO') ? 'block' : 'none';
+}
+function abrirEscolhaOperador(i){
+  const o = ultimoConsolidado[i];
+  if(!o) return;
+  opSel = { cracha: o.cracha, nome: o.nome };
+  renderEscolha(o);
+  document.getElementById('overlay-escolha-op').classList.add('active');
+}
+function refrescarModalEscolha(){
+  if(!opSel) return;
+  const o = ultimoConsolidado.find(x => String(x.cracha) === String(opSel.cracha));
+  if(!o){ fecharEscolhaOp(); return; }
+  renderEscolha(o);
+}
+function fecharEscolhaOp(){ document.getElementById('overlay-escolha-op').classList.remove('active'); }
+function escolherPlanilha(){ const s = opSel; fecharEscolhaOp(); abrirRelatorioOperador(s.cracha, s.nome); }
+function escolherDetalhado(){ const s = opSel; fecharEscolhaOp(); abrirRelatorioDetalhado(s.cracha, s.nome); }
+
+async function acaoFechamento(action, extra){
+  if(!opSel) return false;
+  const { ano, mes } = mesConsolidado();
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', Object.assign({ action: action, cracha: opSel.cracha, ano: ano, mes: mes }, extra || {}));
+    if(!r.ok){ alert(r.erro || 'Não foi possível concluir.'); loading(false); return false; }
+    await carregarConsolidado();
+    refrescarModalEscolha();
+    loading(false);
+    return true;
+  }catch(err){
+    alert('Erro de conexão. Tente novamente.');
+  }
+  loading(false);
+  return false;
+}
+async function fechamentoConferirAcao(){
+  if(!opSel) return;
+  if(!confirm('Confirmar a conferência do mês de ' + opSel.nome + '? Depois disso o pagamento dele está liberado.')) return;
+  await acaoFechamento('fechamentoConferir', {});
+}
+async function fechamentoResolverAcao(){
+  if(!opSel) return;
+  if(!confirm('Marcar a contestação de ' + opSel.nome + ' como resolvida? O operador será chamado a aprovar o mês de novo.')) return;
+  await acaoFechamento('fechamentoResolver', {});
+}
+function abrirModalLiberar(){
+  document.getElementById('liberar-motivo').value = '';
+  document.getElementById('liberar-erro').textContent = '';
+  document.getElementById('overlay-liberar').classList.add('active');
+}
+function fecharModalLiberar(){ document.getElementById('overlay-liberar').classList.remove('active'); }
+async function confirmarLiberar(){
+  const motivo = document.getElementById('liberar-motivo').value.trim();
+  if(motivo.length < 5){ document.getElementById('liberar-erro').textContent = 'Informe o motivo da liberação.'; return; }
+  const ok = await acaoFechamento('fechamentoLiberar', { motivo: motivo });
+  if(ok) fecharModalLiberar();
+}
+
 // ---------- CONSOLIDADO: planilha de pagamento de um operador ----------
 let relOperadorLinhas = [];
 let relOperadorNome = '';
+function textoRncValor(x){
+  if(!x.rncNumero) return '';
+  if(x.rncPendente) return 'RNC ' + x.rncNumero + ' — AGUARDANDO ENGENHARIA';
+  return 'RNC ' + x.rncNumero + ' — ' + fmtValor(x.valorTotal);
+}
 async function abrirRelatorioOperador(cracha, nome){
   const valor = document.getElementById('f-mes-consolidado').value;
   if(!valor) return;
-  const [anoStr, mesStr] = valor.split('-');
+  const { ano, mes } = mesConsolidado();
   loading(true);
   try{
-    const r = await chamarAPI(null, 'POST', { action:'relatorioOperador', cracha, ano:Number(anoStr), mes:Number(mesStr) });
+    const r = await chamarAPI(null, 'POST', { action:'relatorioOperador', cracha, ano, mes });
     if(!r.ok) throw new Error(r.erro);
     relOperadorNome = nome;
     relOperadorLinhas = (r.registros || []).map(x => ({
@@ -1451,12 +1690,13 @@ async function abrirRelatorioOperador(cracha, nome){
       ordem: String(x.ordem || '').toUpperCase(),
       op: String(x.op || '').toUpperCase(),
       observacao: (String(x.ordem || '') + ' - ' + String(x.op || '') + ' - ' + String(x.observacao || '')).toUpperCase(),
-      emergencia: x.emergencia ? 'EMERGÊNCIA APROVADA' : ''
+      emergencia: x.emergencia ? 'EMERGÊNCIA APROVADA' : '',
+      rnc: textoRncValor(x)
     }));
     document.getElementById('rel-op-titulo').textContent = nome.toUpperCase();
     document.getElementById('rel-op-sub').textContent = 'RELATÓRIO DE ' + valor + ' — ' + relOperadorLinhas.length + ' APONTAMENTO(S)';
     document.getElementById('rel-op-corpo').innerHTML = relOperadorLinhas.length === 0
-      ? '<tr><td colspan="6" style="padding:14px;color:var(--text-dim);">NENHUM APONTAMENTO NESSE MÊS</td></tr>'
+      ? '<tr><td colspan="7" style="padding:14px;color:var(--text-dim);">NENHUM APONTAMENTO NESSE MÊS</td></tr>'
       : relOperadorLinhas.map(l => `
         <tr>
           <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--amber);">${escaparHtml(l.pj)}</td>
@@ -1465,6 +1705,7 @@ async function abrirRelatorioOperador(cracha, nome){
           <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.op)}</td>
           <td style="padding:8px;border-bottom:1px solid var(--border);">${escaparHtml(l.observacao)}</td>
           <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--amber);">${escaparHtml(l.emergencia)}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--amber);">${escaparHtml(l.rnc)}</td>
         </tr>`).join('');
     document.getElementById('overlay-rel-operador').classList.add('active');
   }catch(err){
@@ -1474,12 +1715,8 @@ async function abrirRelatorioOperador(cracha, nome){
 }
 function baixarRelatorioOperadorExcel(){
   if(relOperadorLinhas.length === 0){ alert('Sem dados pra exportar.'); return; }
-  if(typeof XLSX === 'undefined'){ alert('Biblioteca de Excel ainda carregando, tente de novo.'); return; }
-  const linhas = relOperadorLinhas.map(l => ({ 'PJ': l.pj, 'QUANTIDADE': l.quantidade, 'ORDEM': l.ordem, 'OP': l.op, 'OBSERVAÇÃO': l.observacao, 'EMERGÊNCIA': l.emergencia }));
-  const ws = XLSX.utils.json_to_sheet(linhas);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'RELATORIO');
-  XLSX.writeFile(wb, 'relatorio_' + relOperadorNome.replace(/\s+/g,'_') + '_' + document.getElementById('f-mes-consolidado').value + '.xlsx');
+  const linhas = relOperadorLinhas.map(l => ({ 'PJ': l.pj, 'QUANTIDADE': l.quantidade, 'ORDEM': l.ordem, 'OP': l.op, 'OBSERVAÇÃO': l.observacao, 'EMERGÊNCIA': l.emergencia, 'RNC / VALOR': l.rnc }));
+  baixarExcelGenerico(linhas, 'RELATORIO', 'relatorio_' + relOperadorNome.replace(/\s+/g,'_') + '_' + document.getElementById('f-mes-consolidado').value);
 }
 
 // ---------- CONSOLIDADO: relatório detalhado de um operador ----------
@@ -1488,19 +1725,21 @@ let detNome = '';
 async function abrirRelatorioDetalhado(cracha, nome){
   const valor = document.getElementById('f-mes-consolidado').value;
   if(!valor) return;
-  const [anoStr, mesStr] = valor.split('-');
+  const { ano, mes } = mesConsolidado();
   loading(true);
   try{
-    const r = await chamarAPI(null, 'POST', { action:'relatorioOperador', cracha, ano:Number(anoStr), mes:Number(mesStr) });
+    const r = await chamarAPI(null, 'POST', { action:'relatorioOperador', cracha, ano, mes });
     if(!r.ok) throw new Error(r.erro);
     detNome = nome;
     detLinhas = (r.registros || []).map(x => ({
       'Data': fmtData(x.data), 'Ordem': x.ordem, 'OP': x.op, 'PJ': x.pj, 'Centro': x.centro,
-      'Categoria': x.categoria || '', 'Descrição': x.observacao || '',
+      'Categoria': x.categoria || '',
+      'RNC': x.rncNumero ? (x.rncNumero + (x.rncPendente ? ' (aguardando engenharia)' : '')) : '',
+      'Descrição': x.observacao || '',
       'Início': formatarHora(x.horaInicio), 'Fim': formatarHora(x.horaFim),
       'Duração': formatarDuracao(x.duracaoMin), 'Tempo por dia': porDiaTexto(x.porDia),
       'Qtd': String(x.quantidade || 0).replace('.',','),
-      'Valor': x.valorManual ? 'Manual (AE-1301)' : fmtValor(x.valorTotal),
+      'Valor': x.rncPendente ? 'Aguardando engenharia' : (x.valorManual ? 'Manual (AE-1301)' : fmtValor(x.valorTotal)),
       'Aprovação': x.aprovacao || '',
       'Emergência': x.emergencia ? 'APROVADA (+30%)' : '',
       'Status': x.status
@@ -1515,14 +1754,14 @@ async function abrirRelatorioDetalhado(cracha, nome){
   loading(false);
 }
 
-// ---------- HISTÓRICO (com emergência, equipe e peças totais) ----------
+// ---------- HISTÓRICO (com emergência, equipe, peças totais e RNC) ----------
 let historicoRegistros = [];
 const NOMES_EQUIPE = { 1:'Sozinho', 2:'Dupla', 3:'Trio' };
 function linhasHistorico(){
   return historicoRegistros.map(x => ({
     'Data': fmtData(x.data), 'Operador': x.nome, 'Ordem': x.ordem, 'OP': x.op, 'PJ': x.pj,
     'Centro': x.centro + (nomeDoCentro(x.centro) ? ' — ' + nomeDoCentro(x.centro) : ''),
-    'Categoria': x.categoria || '', 'Descrição': x.observacao || '',
+    'Categoria': x.categoria || '', 'RNC': x.rncNumero || '', 'Descrição': x.observacao || '',
     'Início': formatarHora(x.horaInicio), 'Fim': formatarHora(x.horaFim),
     'Duração': formatarDuracao(x.duracaoMin), 'Pausa': formatarDuracao(x.pausaMin),
     'Qtd': String(x.quantidade || 0).replace('.',','),
@@ -1776,6 +2015,176 @@ function baixarPrevistoExcel(){
   });
   baixarExcelGenerico(linhas, 'PREVISTO_REAL_ORDEM', 'previsto_x_real_por_ordem');
 }
+
+// ---------- RNCs (gestão envia à engenharia → engenharia lança o valor → gestão fecha) ----------
+let rncLista = [];
+const ST_RNC = {
+  ABERTA: ['Aberta (operadores apontando)', ''],
+  ENVIADA: ['Enviada à engenharia', 'atencao'],
+  RETORNO: ['Retorno recebido — aguardando conferência', 'atencao'],
+  FECHADA: ['Fechada', 'ok']
+};
+async function carregarRncs(){
+  if(!admin) return;
+  const container = document.getElementById('lista-rncs');
+  document.getElementById('rnc-ajuda').textContent = admin.perfil === 'engenharia'
+    ? 'Lance o valor em R$ de cada operador da RNC (o valor é pago inteiro a cada um, independente das horas apontadas) e escreva o parecer. Depois do envio, a gestão confere e fecha.'
+    : 'Fluxo: a RNC fica Aberta enquanto os operadores apontam → você envia à engenharia → a engenharia lança o valor em R$ de cada operador → você confere e fecha. O valor é pago inteiro a cada operador (independe das horas) e entra no pagamento do mês em que a RNC é fechada.';
+  container.innerHTML = '<div class="vazio-geral"><p>Carregando...</p></div>';
+  loading(true);
+  try{
+    const r = await chamarAPI(null, 'POST', { action:'listarRncs' });
+    if(!r.ok){
+      container.innerHTML = '<div class="vazio-geral"><p>' + escaparHtml(r.erro || 'Erro ao carregar') + '</p></div>';
+      loading(false);
+      return;
+    }
+    rncLista = r.rncs || [];
+    renderRncs();
+  }catch(err){
+    container.innerHTML = '<div class="vazio-geral"><p>Não foi possível conectar. Tente novamente.</p></div>';
+  }
+  loading(false);
+}
+function renderRncs(){
+  const container = document.getElementById('lista-rncs');
+  const fs = document.getElementById('rnc-filtro-status').value;
+  const fn = normRncCliente(document.getElementById('rnc-filtro-num').value);
+  const itens = rncLista.map((r, i) => ({ r: r, i: i }))
+    .filter(x => (!fs || x.r.status === fs) && (!fn || String(x.r.numero).indexOf(fn) !== -1));
+  document.getElementById('contagem-rncs').textContent = itens.length + ' RNC(s)';
+  if(!itens.length){
+    container.innerHTML = '<div class="vazio-geral"><p>' +
+      (admin && admin.perfil === 'engenharia' ? 'Nenhuma RNC enviada para a engenharia' : 'Nenhuma RNC encontrada') + '</p></div>';
+    return;
+  }
+  const podeLancarPerfil = admin && (admin.perfil === 'gestao' || admin.perfil === 'engenharia');
+  const gestao = admin && admin.perfil === 'gestao';
+  container.innerHTML = itens.map(x => {
+    const r = x.r, i = x.i;
+    const def = ST_RNC[r.status] || ST_RNC.ABERTA;
+    const editavel = podeLancarPerfil && (r.status === 'ENVIADA' || r.status === 'RETORNO');
+    let sub = 'Ordem(ns): ' + escaparHtml(r.ordens.join(', ')) + ' · ' + r.linhas.length + ' apontamento(s) · ' + formatarDuracao(r.horasTotalMin) + ' no total';
+    if(r.enviadaEm) sub += '<br>Enviada por ' + escaparHtml(r.enviadaPor || '—') + ' em ' + fmtDataHora(r.enviadaEm);
+    if(r.retornoEm) sub += '<br>Retorno de ' + escaparHtml(r.retornoPor || '—') + ' em ' + fmtDataHora(r.retornoEm);
+    if(r.fechadaEm) sub += '<br>Fechada por ' + escaparHtml(r.fechadaPor || '—') + ' em ' + fmtDataHora(r.fechadaEm);
+
+    const linhasHtml = r.linhas.map(l => {
+      const celulaValor = editavel
+        ? '<input type="number" step="0.01" min="0" inputmode="decimal" data-id="' + escaparHtml(l.id) + '" value="' + (l.valor != null ? l.valor : '') + '" placeholder="R$">'
+        : (l.valor != null ? fmtValor(l.valor) : '—');
+      return '<tr>' +
+        '<td>' + escaparHtml(l.nome) + '</td>' +
+        '<td>' + escaparHtml(l.ordem) + ' / ' + escaparHtml(l.op) + '</td>' +
+        '<td>' + escaparHtml(l.centro) + '</td>' +
+        '<td>' + formatarDuracao(l.horasMin) + (l.status !== 'CONCLUÍDO' ? ' <span class="st-falta">(em andamento)</span>' : '') + '</td>' +
+        '<td style="max-width:320px;white-space:normal;">' + escaparHtml(l.descricao) + '</td>' +
+        '<td>' + celulaValor + '</td></tr>';
+    }).join('');
+
+    let rodape = '';
+    if(r.status === 'ABERTA' && gestao){
+      rodape = (r.ativos > 0 ? '<span class="st-falta">' + r.ativos + ' apontamento(s) ainda em andamento: só dá para enviar quando todos encerrarem.</span>' : '') +
+        '<button class="btn-confirmar" style="' + (r.ativos > 0 ? 'opacity:.4;' : '') + '" ' + (r.ativos > 0 ? 'disabled' : '') + ' onclick="rncEnviarAcao(' + i + ')">ENVIAR À ENGENHARIA</button>';
+    }
+    if(editavel){
+      rodape = '<div style="flex-basis:100%;">' +
+        (r.parecer ? '<div class="rnc-obs"><b>Parecer atual:</b> ' + escaparHtml(r.parecer) + '</div>' : '') +
+        '<textarea class="rnc-parecer" id="rnc-parecer-' + i + '" placeholder="Parecer / observação da engenharia (opcional)">' + escaparHtml(r.parecer || '') + '</textarea>' +
+        '</div>' +
+        '<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);">Mesmo valor para todos: R$</span>' +
+        '<input type="number" step="0.01" min="0" id="rnc-igual-' + i + '" style="width:110px;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);padding:8px;border-radius:6px;">' +
+        '<button class="btn-editar" style="flex:none;" onclick="rncPreencherIgual(' + i + ')">APLICAR</button>' +
+        '<button class="btn-confirmar verde" onclick="rncSalvarRetornoAcao(' + i + ')">' + (r.status === 'RETORNO' ? 'ATUALIZAR RETORNO' : 'ENVIAR RETORNO') + '</button>';
+      if(r.status === 'RETORNO' && gestao){
+        rodape += '<button class="btn-confirmar verde" style="background:var(--green);" onclick="rncFecharAcao(' + i + ')">✔ CONFIRMAR E FECHAR</button>' +
+          '<button class="btn-editar" style="flex:none;" onclick="rncDevolverAcao(' + i + ')">DEVOLVER À ENGENHARIA</button>';
+      }
+    } else if(r.status === 'FECHADA' && r.parecer){
+      rodape = '<div class="rnc-obs" style="flex-basis:100%;"><b>Parecer:</b> ' + escaparHtml(r.parecer) + '</div>';
+    }
+
+    return '<div class="card-rnc" id="card-rnc-' + i + '">' +
+      '<div class="rnc-topo"><div>' +
+        '<div class="rnc-titulo">RNC ' + escaparHtml(r.numero) + ' <span class="badge-st ' + def[1] + '">' + def[0] + '</span></div>' +
+        '<div class="rnc-sub">' + sub + '</div></div>' +
+        '<button class="btn-mini remover" onclick="baixarRncExcel(' + i + ')">⬇ RESUMO (EXCEL)</button></div>' +
+      '<div style="overflow-x:auto;"><table class="rnc-tabela"><thead><tr><th>Operador</th><th>Ordem / OP</th><th>Centro</th><th>Horas</th><th>Descrição do serviço</th><th>Valor (R$)</th></tr></thead><tbody>' +
+      linhasHtml + '</tbody></table></div>' +
+      '<div class="rnc-acoes">' + rodape + '</div></div>';
+  }).join('');
+}
+function rncPreencherIgual(i){
+  const v = document.getElementById('rnc-igual-' + i).value;
+  if(v === ''){ alert('Digite o valor que vale para todos.'); return; }
+  document.querySelectorAll('#card-rnc-' + i + ' input[data-id]').forEach(inp => { inp.value = v; });
+}
+async function rncSalvarRetornoAcao(i){
+  const r = rncLista[i];
+  if(!r) return;
+  const valores = [];
+  let faltando = false;
+  document.querySelectorAll('#card-rnc-' + i + ' input[data-id]').forEach(inp => {
+    if(String(inp.value).trim() === '') faltando = true;
+    valores.push({ id: inp.getAttribute('data-id'), valor: inp.value });
+  });
+  if(faltando){ alert('Informe o valor (R$) de todos os operadores desta RNC.'); return; }
+  const parecerEl = document.getElementById('rnc-parecer-' + i);
+  if(!confirm('Enviar o retorno da RNC ' + r.numero + '? Cada operador receberá o valor informado, independente das horas.')) return;
+  loading(true);
+  try{
+    const resp = await chamarAPI(null, 'POST', {
+      action:'rncSalvarRetorno', numero: r.numero, valores: valores, parecer: parecerEl ? parecerEl.value.trim() : ''
+    });
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível salvar o retorno.'); loading(false); return; }
+    await carregarRncs();
+  }catch(err){
+    alert('Erro de conexão. Tente novamente.');
+  }
+  loading(false);
+}
+async function acaoRnc(action, r, extra){
+  loading(true);
+  try{
+    const resp = await chamarAPI(null, 'POST', Object.assign({ action: action, numero: r.numero }, extra || {}));
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível concluir.'); loading(false); return; }
+    await carregarRncs();
+  }catch(err){
+    alert('Erro de conexão. Tente novamente.');
+  }
+  loading(false);
+}
+async function rncEnviarAcao(i){
+  const r = rncLista[i];
+  if(!r || !confirm('Enviar a RNC ' + r.numero + ' para a engenharia?')) return;
+  await acaoRnc('rncEnviar', r);
+}
+async function rncFecharAcao(i){
+  const r = rncLista[i];
+  if(!r) return;
+  const total = r.linhas.reduce((s, l) => s + (l.valor || 0), 0);
+  if(!confirm('Fechar a RNC ' + r.numero + '? Os valores (total R$ ' + total.toFixed(2).replace('.', ',') + ') entram no pagamento deste mês e não poderão mais ser alterados aqui.')) return;
+  await acaoRnc('rncFechar', r);
+}
+async function rncDevolverAcao(i){
+  const r = rncLista[i];
+  if(!r) return;
+  const motivo = prompt('Devolver a RNC ' + r.numero + ' para a engenharia. O que precisa ser corrigido?', '');
+  if(motivo === null) return;
+  await acaoRnc('rncDevolver', r, { motivo: motivo });
+}
+function baixarRncExcel(i){
+  const r = rncLista[i];
+  if(!r) return;
+  const linhas = r.linhas.map(l => ({
+    'RNC': r.numero, 'Situação da RNC': (ST_RNC[r.status] || ST_RNC.ABERTA)[0],
+    'Operador': l.nome, 'Ordem': l.ordem, 'OP': l.op, 'Centro': l.centro,
+    'Horas': formatarDuracao(l.horasMin), 'Descrição': l.descricao,
+    'Valor (R$)': l.valor != null ? l.valor : ''
+  }));
+  baixarExcelGenerico(linhas, 'RNC_' + r.numero, 'rnc_' + r.numero);
+}
 </script>
 </body>
 </html>
+// ===== FIM DA PARTE 3 — a PARTE 4 continua exatamente daqui (cole logo abaixo, ainda dentro do <script>) =====
