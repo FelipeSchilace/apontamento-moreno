@@ -299,7 +299,7 @@
   }
 
   /* ---------- LISTA DE ATIVOS ---------- */
-  #tela-lista{gap:0;}
+  #tela-lista, #tela-insp-lista{gap:0;}
   .lista-vazia{
     flex:1;
     display:flex;
@@ -403,6 +403,17 @@
     padding:16px;
     border-radius:10px;
     margin-top:auto;
+  }
+
+  /* ---------- INSPEÇÃO: finalizar ---------- */
+  .final-botoes{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+  .btn-aprovada{
+    background:var(--green);border:none;color:#fff;font-family:var(--font-body);
+    font-weight:700;font-size:18px;letter-spacing:0.5px;padding:22px;border-radius:10px;
+  }
+  .btn-reprovada{
+    background:var(--red);border:none;color:#fff;font-family:var(--font-body);
+    font-weight:700;font-size:18px;letter-spacing:0.5px;padding:22px;border-radius:10px;
   }
 
   /* ---------- MODAIS ---------- */
@@ -551,12 +562,12 @@
   <header>
     <div class="brand">
       <div class="m">MORENO<span>·</span>FUNDIÇÃO</div>
-      <div class="sub">Apontamento</div>
+      <div class="sub" id="header-sub">Apontamento</div>
     </div>
     <div id="header-op" style="display:none;">
       <div class="op-tag"><b id="header-nome"></b>Crachá <span id="header-cracha"></span></div>
       <div class="header-botoes">
-        <button class="logout-btn" onclick="abrirRelatorio()">RELATÓRIO</button>
+        <button class="logout-btn" id="btn-header-relatorio" onclick="abrirRelatorio()">RELATÓRIO</button>
         <button class="logout-btn" onclick="sair()">SAIR</button>
       </div>
     </div>
@@ -666,6 +677,38 @@
       <button class="btn-novo-flutuante" onclick="irParaNovo()">+ NOVO APONTAMENTO</button>
     </section>
 
+    <!-- INSPEÇÃO DE QUALIDADE: NOVA -->
+    <section id="tela-insp-novo" class="screen">
+      <div class="topo-tela">
+        <div class="titulo-tela">Nova inspeção</div>
+        <button class="link-voltar" id="btn-voltar-lista-insp" onclick="mostrarTela('tela-insp-lista')" style="display:none;">VER ATIVAS</button>
+      </div>
+      <div class="subtitulo-tela">Informe a ordem e a operação</div>
+
+      <div class="campo">
+        <label>Ordem</label>
+        <input type="text" id="i-ordem" inputmode="numeric" pattern="[0-9]*">
+      </div>
+      <div class="campo">
+        <label>Operação (OP)</label>
+        <input type="text" id="i-op" inputmode="numeric" pattern="[0-9]*">
+      </div>
+
+      <button class="btn-primario" onclick="iniciarInspecao()">INICIAR INSPEÇÃO</button>
+      <div class="erro-form" id="insp-erro-novo"></div>
+    </section>
+
+    <!-- INSPEÇÃO DE QUALIDADE: LISTA -->
+    <section id="tela-insp-lista" class="screen">
+      <div class="titulo-tela" style="margin-bottom:18px;">Minhas inspeções</div>
+      <div id="insp-lista-vazia" class="lista-vazia" style="display:none;">
+        <div class="icone-vazio">—</div>
+        <p>Nenhuma inspeção ativa</p>
+      </div>
+      <div id="insp-lista-ativos" class="lista-ativos"></div>
+      <button class="btn-novo-flutuante" onclick="irParaNovoInsp()">+ NOVA INSPEÇÃO</button>
+    </section>
+
     <!-- RELATÓRIO MENSAL -->
     <section id="tela-relatorio" class="screen">
       <div class="topo-tela">
@@ -730,6 +773,37 @@
   </div>
 </div>
 
+<!-- MODAL INSPEÇÃO: FINALIZAR (aprovada / reprovada) -->
+<div class="overlay" id="overlay-insp-final">
+  <div class="modal">
+    <h3>Finalizar inspeção</h3>
+    <p id="insp-final-texto"></p>
+    <div class="final-botoes">
+      <button class="btn-aprovada" onclick="aprovarInsp()">✔ PEÇA APROVADA</button>
+      <button class="btn-reprovada" onclick="abrirReprovarInsp()">✖ PEÇA REPROVADA</button>
+    </div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharFinalizarInsp()">VOLTAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INSPEÇÃO: MOTIVO DA REPROVAÇÃO -->
+<div class="overlay" id="overlay-insp-reprovar">
+  <div class="modal">
+    <h3>Peça reprovada</h3>
+    <p id="insp-reprovar-texto">Digite o motivo da reprovação.</p>
+    <div class="campo" style="margin-bottom:10px;">
+      <textarea id="insp-motivo" style="min-height:110px;"></textarea>
+    </div>
+    <div class="erro-form" id="insp-motivo-erro" style="margin-top:0;margin-bottom:10px;"></div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="voltarDaReprovacao()">VOLTAR</button>
+      <button class="btn-confirmar" onclick="confirmarReprovarInsp()">CONFIRMAR REPROVAÇÃO</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL APROVAR MÊS -->
 <div class="overlay" id="overlay-aprovar-mes">
   <div class="modal">
@@ -779,7 +853,8 @@ const CHAVE_CRACHA_SALVO = 'moreno_apontamento_cracha';
 let operadores = [];
 let crachaDigitado = '';
 let sessao = null;              // { nome, cracha }
-let apontamentosAtivos = [];    // [{ id, inicioTs, pausaMin, pausadoTs, status, ordem, op, pj, centro, observacao, categoria, rncNumero, emergencia }]
+let perfil = 'operador';        // 'operador' ou 'inspetor'
+let apontamentosAtivos = [];    // operador: apontamentos · inspetor: inspeções ativas
 let timerInterval = null;
 let encerrarIdAtual = null;     // id do apontamento sendo encerrado no modal
 
@@ -933,30 +1008,33 @@ async function entrar(){
     // Se ainda há ações na fila, o servidor ainda não sabe delas: mantém o estado local.
     const c = lerCacheLocal();
     if(fila.length > 0 && c && String(c.cracha) === String(r.operador.cracha)) ativos = c.ativos || ativos;
-    abrirSessao(r.operador, ativos);
+    abrirSessao(r.operador, ativos, r.perfil || 'operador');
   }catch(err){
     // Sem rede: se este celular já tem os dados desse crachá, entra em modo offline.
     const c = lerCacheLocal();
     if(c && String(c.cracha) === String(crachaDigitado)){
-      abrirSessao({ nome:c.nome, cracha:c.cracha }, c.ativos || []);
+      abrirSessao({ nome:c.nome, cracha:c.cracha }, c.ativos || [], c.perfil || 'operador');
     } else {
       erroEl.textContent = 'Sem conexão. Tente novamente.';
     }
   }
   loading(false);
 }
-function abrirSessao(operador, ativos){
+function abrirSessao(operador, ativos, perfilLogin){
   sessao = operador;
+  perfil = perfilLogin === 'inspetor' ? 'inspetor' : 'operador';
   document.getElementById('header-nome').textContent = sessao.nome;
   document.getElementById('header-cracha').textContent = sessao.cracha;
   document.getElementById('header-op').style.display = 'block';
+  document.getElementById('header-sub').textContent = perfil === 'inspetor' ? 'Inspeção de qualidade' : 'Apontamento';
+  document.getElementById('btn-header-relatorio').style.display = perfil === 'inspetor' ? 'none' : 'inline-block';
   apontamentosAtivos = ativos;
   salvarCacheLocal();
   iniciarSincronizacao();
-  if(apontamentosAtivos.length > 0){
-    abrirTelaLista();
+  if(perfil === 'inspetor'){
+    if(apontamentosAtivos.length > 0) abrirTelaListaInsp(); else irParaNovoInsp();
   } else {
-    irParaNovo();
+    if(apontamentosAtivos.length > 0) abrirTelaLista(); else irParaNovo();
   }
   atualizarBannerFila();
   descarregarFila();
@@ -964,6 +1042,7 @@ function abrirSessao(operador, ativos){
 function sair(){
   if(fila.length > 0 && !confirm('Há ' + fila.length + ' ação(ões) ainda sem enviar. Elas serão enviadas quando houver conexão. Sair mesmo assim?')) return;
   sessao = null;
+  perfil = 'operador';
   crachaDigitado = '';
   apontamentosAtivos = [];
   clearInterval(timerInterval);
@@ -972,6 +1051,7 @@ function sair(){
   localStorage.removeItem(CHAVE_CRACHA_SALVO);
   if(fila.length === 0) localStorage.removeItem(CHAVE_CACHE);
   document.getElementById('header-op').style.display = 'none';
+  document.getElementById('header-sub').textContent = 'Apontamento';
   document.getElementById('login-erro').textContent = '';
   mostrarTela('tela-login');
 }
@@ -1338,6 +1418,127 @@ function confirmarEncerrar(){
   }
 }
 
+// ================== INSPEÇÃO DE QUALIDADE (perfil inspetor) ==================
+// Só ordem e operação. Ao finalizar: APROVADA encerra na hora; REPROVADA pede o motivo.
+function irParaNovoInsp(){
+  document.getElementById('i-ordem').value = '';
+  document.getElementById('i-op').value = '';
+  document.getElementById('insp-erro-novo').textContent = '';
+  document.getElementById('btn-voltar-lista-insp').style.display = apontamentosAtivos.length > 0 ? 'block' : 'none';
+  mostrarTela('tela-insp-novo');
+}
+function iniciarInspecao(){
+  const erroEl = document.getElementById('insp-erro-novo');
+  erroEl.textContent = '';
+  const ordem = document.getElementById('i-ordem').value.trim();
+  const op = document.getElementById('i-op').value.trim();
+  if(!ordem || !op){ erroEl.textContent = 'Preencha a ordem e a operação'; return; }
+  if(apontamentosAtivos.find(a => String(a.ordem).trim() === ordem && String(a.op).trim() === op)){
+    erroEl.textContent = 'Você já tem uma inspeção ativa dessa ordem e operação.';
+    return;
+  }
+  const ts = Date.now();
+  const id = ts + '_' + sessao.cracha;
+  apontamentosAtivos.push({ id, inicioTs:ts, pausaMin:0, pausadoTs:null, status:'EM ANDAMENTO', ordem, op });
+  enfileirar({ action:'inspIniciar', id, ts, cracha:sessao.cracha, ordem, op });
+  abrirTelaListaInsp();
+}
+function abrirTelaListaInsp(){
+  renderizarListaInsp();
+  mostrarTela('tela-insp-lista');
+  clearInterval(timerInterval);
+  timerInterval = setInterval(atualizarTodosCronometros, 1000);
+}
+function renderizarListaInsp(){
+  const container = document.getElementById('insp-lista-ativos');
+  const vazio = document.getElementById('insp-lista-vazia');
+  if(apontamentosAtivos.length === 0){
+    container.innerHTML = '';
+    vazio.style.display = 'flex';
+    return;
+  }
+  vazio.style.display = 'none';
+  container.innerHTML = apontamentosAtivos.map(a => `
+    <div class="card-ativo" data-id="${a.id}">
+      <div class="card-topo">
+        <span class="status-pill ${a.status==='PAUSADO'?'pausado':''}">${a.status==='PAUSADO'?'PAUSADA':'EM INSPEÇÃO'}</span>
+        <span class="cronometro ${a.status==='PAUSADO'?'pausado-txt':''}" id="crono-${a.id}">00:00:00</span>
+      </div>
+      <div class="card-info">
+        <div class="linha"><span>Ordem</span><span>${escaparHtml(a.ordem)}</span></div>
+        <div class="linha"><span>Operação</span><span>${escaparHtml(a.op)}</span></div>
+      </div>
+      <div class="acoes-card">
+        <button class="btn-pausar ${a.status==='PAUSADO'?'retomar':''}" onclick="alternarPausaInsp('${a.id}')">${a.status==='PAUSADO'?'RETOMAR':'PAUSAR'}</button>
+        <button class="btn-encerrar" onclick="abrirFinalizarInsp('${a.id}')">FINALIZAR</button>
+      </div>
+    </div>
+  `).join('');
+  atualizarTodosCronometros();
+}
+function alternarPausaInsp(id){
+  const a = apontamentosAtivos.find(x => x.id === id);
+  if(!a) return;
+  const ts = Date.now();
+  if(a.status === 'EM ANDAMENTO'){
+    a.status = 'PAUSADO';
+    a.pausadoTs = ts;
+    enfileirar({ action:'inspPausar', id, ts });
+  } else {
+    const minutos = a.pausadoTs ? Math.round((ts - a.pausadoTs) / 60000) : 0;
+    a.pausaMin = (a.pausaMin || 0) + Math.max(0, minutos);
+    a.status = 'EM ANDAMENTO';
+    a.pausadoTs = null;
+    enfileirar({ action:'inspRetomar', id, ts });
+  }
+  renderizarListaInsp();
+}
+let inspFinalId = null;
+function abrirFinalizarInsp(id){
+  const a = apontamentosAtivos.find(x => x.id === id);
+  if(!a) return;
+  inspFinalId = id;
+  document.getElementById('insp-final-texto').textContent = 'Ordem ' + a.ordem + ' — Operação ' + a.op + '. A peça foi aprovada?';
+  document.getElementById('overlay-insp-final').classList.add('active');
+}
+function fecharFinalizarInsp(){
+  document.getElementById('overlay-insp-final').classList.remove('active');
+}
+function aprovarInsp(){ concluirInsp('APROVADA', ''); }
+function abrirReprovarInsp(){
+  fecharFinalizarInsp();
+  document.getElementById('insp-motivo').value = '';
+  document.getElementById('insp-motivo-erro').textContent = '';
+  document.getElementById('overlay-insp-reprovar').classList.add('active');
+}
+function voltarDaReprovacao(){
+  document.getElementById('overlay-insp-reprovar').classList.remove('active');
+  document.getElementById('overlay-insp-final').classList.add('active');
+}
+function confirmarReprovarInsp(){
+  const motivo = document.getElementById('insp-motivo').value.trim();
+  if(motivo.length < 3){
+    document.getElementById('insp-motivo-erro').textContent = 'Digite o motivo da reprovação';
+    return;
+  }
+  concluirInsp('REPROVADA', motivo);
+}
+function concluirInsp(resultado, motivo){
+  const id = inspFinalId;
+  if(!id) return;
+  enfileirar({ action:'inspEncerrar', id, resultado, motivo, ts: Date.now() });
+  apontamentosAtivos = apontamentosAtivos.filter(a => a.id !== id);
+  inspFinalId = null;
+  document.getElementById('overlay-insp-final').classList.remove('active');
+  document.getElementById('overlay-insp-reprovar').classList.remove('active');
+  if(apontamentosAtivos.length === 0){
+    clearInterval(timerInterval);
+    irParaNovoInsp();
+  } else {
+    renderizarListaInsp();
+  }
+}
+
 // ---------- sincronização automática com a planilha ----------
 // A cada 30s (e ao voltar pro app) busca os apontamentos ativos. Assim, quando o
 // sistema pausa uma ordem que excedeu o tempo e abre o de "Horas Excedidas",
@@ -1350,6 +1551,14 @@ function iniciarSincronizacao(){
 async function sincronizarAtivos(){
   if(!sessao || fila.length > 0 || enviandoFila) return;
   try{
+    if(perfil === 'inspetor'){
+      const ri = await chamarAPI(null, 'POST', { action:'inspAtivos', cracha: sessao.cracha });
+      if(!ri.ok || !Array.isArray(ri.ativos)) return;
+      apontamentosAtivos = ri.ativos;
+      salvarCacheLocal();
+      if(document.getElementById('tela-insp-lista').classList.contains('active')) renderizarListaInsp();
+      return;
+    }
     const r = await chamarAPI('action=ativos&cracha=' + encodeURIComponent(sessao.cracha));
     if(!r.ok || !Array.isArray(r.dados)) return;
     const idsAntigos = new Set(apontamentosAtivos.map(a => a.id));
@@ -1379,7 +1588,7 @@ document.addEventListener('visibilitychange', () => {
 // Pausar, retomar, encerrar e iniciar funcionam mesmo sem sinal: a tela atualiza na hora,
 // a ação fica guardada no celular (com o horário real em que foi feita) e é enviada
 // sozinha, na ordem, assim que a conexão voltar. Cada ação leva um reqId, então se o envio
-// se repetir o servidor não aplica duas vezes.
+// se repetir o servidor não aplica duas vezes. (Vale também para as inspeções.)
 const CHAVE_FILA = 'moreno_fila_offline';
 const CHAVE_CACHE = 'moreno_cache_sessao';
 const CHAVE_PJ_CACHE = 'moreno_pj_cache';
@@ -1470,7 +1679,7 @@ function salvarCacheLocal(){
   if(!sessao) return;
   try{
     localStorage.setItem(CHAVE_CACHE, JSON.stringify({
-      cracha: sessao.cracha, nome: sessao.nome, ativos: apontamentosAtivos, ts: Date.now()
+      cracha: sessao.cracha, nome: sessao.nome, perfil: perfil, ativos: apontamentosAtivos, ts: Date.now()
     }));
   }catch(e){}
 }
